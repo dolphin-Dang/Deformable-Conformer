@@ -17,7 +17,6 @@ import math
 import glob
 import random
 import itertools
-import datetime
 import time
 import datetime
 import sys
@@ -69,26 +68,33 @@ class PatchEmbedding(nn.Module):
     def __init__(self, emb_size=40):
         # self.patch_size = patch_size
         super().__init__()
+        self.emb_size = emb_size
 
         self.shallownet = nn.Sequential(
-            nn.Conv2d(1, 40, (1, 25), (1, 1)),
+            nn.Conv2d(1, 40, (1, 25), (1, 1)), # shape: 1000 -> 976 (1000-25+1)
             nn.Conv2d(40, 40, (22, 1), (1, 1)),
             nn.BatchNorm2d(40),
             nn.ELU(),
-            nn.AvgPool2d((1, 75), (1, 15)),  # pooling acts as slicing to obtain 'patch' along the time dimension as in ViT
+            nn.AvgPool2d((1, 75), (1, 15)),  # shape: 976 -> 61 ((976-75)/15+1)
             nn.Dropout(0.5),
         )
 
-        self.projection = nn.Sequential(
-            nn.Conv2d(40, emb_size, (1, 1), stride=(1, 1)),  # transpose, conv could enhance fiting ability slightly
-            Rearrange('b e (h) (w) -> b (h w) e'),
-        )
+        # transpose, conv could enhance fiting ability slightly
+        self.projection = nn.Conv2d(40, emb_size, (1, 1), stride=(1, 1))
+        # Rearrange('b e (h) (w) -> b (h w) e'),
+
 
 
     def forward(self, x: Tensor) -> Tensor:
-        b, _, _, _ = x.shape
+        bs, _, _, _ = x.shape
         x = self.shallownet(x)
+
+        # 1*1 conv
         x = self.projection(x)
+        
+        # reshape: (bs, embd, a, b) -> (bs, a*b, embd)
+        x = x.permute(0,2,3,1).reshape(bs, -1, self.emb_size)
+        # print(x.shape)
         return x
 
 
@@ -203,6 +209,12 @@ class ClassificationHead(nn.Sequential):
 
 class Conformer(nn.Sequential):
     def __init__(self, emb_size=40, depth=6, n_classes=4, **kwargs):
+        '''
+        input:
+            emb_size: k the num of temporal conv filters
+            depth: num of transformer encoder blocks
+            n_class: output num of last fully-connected layer
+        '''
         super().__init__(
 
             PatchEmbedding(emb_size),
@@ -224,10 +236,10 @@ class ExP():
         self.nSub = nsub
 
         self.start_epoch = 0
-        self.root = '/Data/strict_TE/'
+        # self.root = '/Data/strict_TE/'
+        self.root = './data/rawMat/'
 
-        self.log_write = open("./results/log_subject%d.txt" % self.nSub, "w")
-
+        # self.log_write = open("./results/log_subject%d.txt" % self.nSub, "w")
 
         self.Tensor = torch.cuda.FloatTensor
         self.LongTensor = torch.cuda.LongTensor
@@ -239,21 +251,30 @@ class ExP():
         self.model = Conformer().cuda()
         self.model = nn.DataParallel(self.model, device_ids=[i for i in range(len(gpus))])
         self.model = self.model.cuda()
-        # summary(self.model, (1, 22, 1000))
-
+        summary(self.model, (1, 22, 1000))
 
     # Segmentation and Reconstruction (S&R) data augmentation
     def interaug(self, timg, label):  
+        print("In interaug.")
         aug_data = []
         aug_label = []
         for cls4aug in range(4):
-            cls_idx = np.where(label == cls4aug + 1)
+            # cls_idx = np.where(label == cls4aug + 1)
+            cls_idx = np.where(label == cls4aug)
             tmp_data = timg[cls_idx]
+            tmp_data = tmp_data.reshape(tmp_data.shape[0], -1, *tmp_data.shape[-2:])
             tmp_label = label[cls_idx]
+            # print(timg.shape) # (288, 1, 22, 1000)
+            # print(tmp_data.shape) # (72, 1, 22, 1000)
+            # print(label.shape) # (288, 1)
+            # print(tmp_label.shape) # (72,)
 
             tmp_aug_data = np.zeros((int(self.batch_size / 4), 1, 22, 1000))
+            # print(f"tmp_aug_data.shape = {tmp_aug_data.shape}")
+            # drf: get 8 slices of 8 random data from tmp_data, from the same time period idx
             for ri in range(int(self.batch_size / 4)):
                 for rj in range(8):
+                    # print(f"ri, rj: {ri}, {rj}")
                     rand_idx = np.random.randint(0, tmp_data.shape[0], 8)
                     tmp_aug_data[ri, :, :, rj * 125:(rj + 1) * 125] = tmp_data[rand_idx[rj], :, :,
                                                                       rj * 125:(rj + 1) * 125]
@@ -268,40 +289,49 @@ class ExP():
 
         aug_data = torch.from_numpy(aug_data).cuda()
         aug_data = aug_data.float()
-        aug_label = torch.from_numpy(aug_label-1).cuda()
+        # aug_label = torch.from_numpy(aug_label-1).cuda()
+        aug_label = torch.from_numpy(aug_label).cuda()
         aug_label = aug_label.long()
         return aug_data, aug_label
 
     def get_source_data(self):
 
         # train data
-        self.total_data = scipy.io.loadmat(self.root + 'A0%dT.mat' % self.nSub)
-        self.train_data = self.total_data['data']
-        self.train_label = self.total_data['label']
+        # self.total_data = scipy.io.loadmat(self.root + 'A0%dT.mat' % self.nSub)
+        # self.train_data = self.total_data['data']
+        # self.train_label = self.total_data['label']
 
-        self.train_data = np.transpose(self.train_data, (2, 1, 0))
-        self.train_data = np.expand_dims(self.train_data, axis=1)
-        self.train_label = np.transpose(self.train_label)
+        self.total_data = scipy.io.loadmat(self.root + 's00%d.mat' % self.nSub)
+        self.train_data = self.total_data['x'] # (22, 1000, 288)
+        self.train_label = self.total_data['y'] # (1, 288)
 
+        self.train_data = np.transpose(self.train_data, (2, 0, 1)) # (288, 22, 1000)
+        self.train_data = np.expand_dims(self.train_data, axis=1) # (288, 1, 22, 1000)
+        self.train_label = np.transpose(self.train_label) # (288, 1)
+        
         self.allData = self.train_data
-        self.allLabel = self.train_label[0]
+        self.allLabel = self.train_label
 
         shuffle_num = np.random.permutation(len(self.allData))
+        # print(f"Shuffle num {shuffle_num}")
         self.allData = self.allData[shuffle_num, :, :, :]
         self.allLabel = self.allLabel[shuffle_num]
 
         # test data
-        self.test_tmp = scipy.io.loadmat(self.root + 'A0%dE.mat' % self.nSub)
-        self.test_data = self.test_tmp['data']
-        self.test_label = self.test_tmp['label']
+        # self.test_tmp = scipy.io.loadmat(self.root + 'A0%dE.mat' % self.nSub)
+        # self.test_data = self.test_tmp['data']
+        # self.test_label = self.test_tmp['label']
 
-        self.test_data = np.transpose(self.test_data, (2, 1, 0))
+        self.test_tmp = scipy.io.loadmat(self.root + 'se00%d.mat' % self.nSub)
+        self.test_data = self.test_tmp['x']
+        self.test_label = self.test_tmp['y']
+
+        self.test_data = np.transpose(self.test_data, (2, 0, 1))
         self.test_data = np.expand_dims(self.test_data, axis=1)
         self.test_label = np.transpose(self.test_label)
 
         self.testData = self.test_data
-        self.testLabel = self.test_label[0]
-
+        self.testLabel = self.test_label
 
         # standardize
         target_mean = np.mean(self.allData)
@@ -310,21 +340,25 @@ class ExP():
         self.testData = (self.testData - target_mean) / target_std
 
         # data shape: (trial, conv channel, electrode channel, time samples)
+        # print(self.allData.shape) # (288, 1, 22, 1000)
+        # print(self.allLabel.shape) # (288, 1)
+        # print(self.testData.shape)
+        # print(self.testLabel.shape)
+        # print(self.testLabel)
         return self.allData, self.allLabel, self.testData, self.testLabel
-
 
     def train(self):
 
         img, label, test_data, test_label = self.get_source_data()
 
         img = torch.from_numpy(img)
-        label = torch.from_numpy(label - 1)
+        # label = torch.from_numpy(label - 1)
 
         dataset = torch.utils.data.TensorDataset(img, label)
         self.dataloader = torch.utils.data.DataLoader(dataset=dataset, batch_size=self.batch_size, shuffle=True)
 
         test_data = torch.from_numpy(test_data)
-        test_label = torch.from_numpy(test_label - 1)
+        # test_label = torch.from_numpy(test_label - 1)
         test_dataset = torch.utils.data.TensorDataset(test_data, test_label)
         self.test_dataloader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=self.batch_size, shuffle=True)
 

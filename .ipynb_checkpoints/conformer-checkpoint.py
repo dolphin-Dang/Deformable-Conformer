@@ -239,7 +239,13 @@ class ExP():
         # self.root = '/Data/strict_TE/'
         self.root = './data/rawMat/'
 
-        self.log_write = open("./results/log_subject%d.txt" % self.nSub, "w")
+        
+        res_path = "./results/log_subject%d.txt" % self.nSub
+        dir_name = os.path.dirname(res_path)
+        if not os.path.exists(dir_name):
+            os.makedirs(dir_name)
+        result_write = open(res_path, "w")
+        self.log_write = open(res_path, "w")
 
         self.Tensor = torch.cuda.FloatTensor
         self.LongTensor = torch.cuda.LongTensor
@@ -294,7 +300,7 @@ class ExP():
         aug_label = aug_label.long()
         return aug_data, aug_label
 
-    def get_source_data(self):
+    def get_test_data(self):
         test_tmp = scipy.io.loadmat(self.root + 'se00%d.mat' % self.nSub)
         test_data = test_tmp['x']
         test_label = test_tmp['y']
@@ -305,12 +311,6 @@ class ExP():
 
         testData = test_data
         testLabel = test_label.squeeze()
-
-        # standardize
-        target_mean = np.mean(allData)
-        target_std = np.std(allData)
-        allData = (allData - target_mean) / target_std
-        testData = (testData - target_mean) / target_std
 
         return testData, testLabel
     

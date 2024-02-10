@@ -207,6 +207,69 @@ class ClassificationHead(nn.Sequential):
         return x, out
 
 
+class DeformableAttention(nn.Module):
+    def __init__(self, query, drop_p, num_of_points=10):
+        '''
+        query: (n_classes, emb_size)
+
+        Use nn.Linear to get the reference points and weights.
+        '''
+        self.query = query
+        self.drop_p = drop_p
+        
+        self.fc_pts = nn.Linear(emb_size, num_of_points)
+        self.fc_w = nn.Linear(emb_size, num_of_points)
+        
+
+    def forward(input):
+        bs, n, e = input.shape
+        ref_pts = self.fc_pts(input) # (n_classes, num_of_points) point offset
+        ref_weight = self.fc_w(input).sigmoid() # (n_classes, num_of_points) point weight
+        # TODO: normalize ref_pts to [0, n]
+
+        indices_lists = ref_pts.split(1, dim=0)
+        indices_lists = [t.squeeze().tolist() for t in indices_lists] # list of list
+
+        weight_lists = ref_weight.split(1, dim=0)
+        weight_lists = [t.squeeze() for t in weight_lists] # list of tensor
+        # list of (bs, num_of_points, e) tensors with weight multiplied
+        deform_tensors = []
+        for i in range(len(indices_lists)):
+            tmp_t = input[:, indices_lists[i], :] # (bs, num_of_points, e)
+            weights_tensor = torch.tensor(weight_lists[i])[None, :, None] # (None, num_of_points, None)
+            deform_tensors.append(tmp_t * weights_tensor)
+
+        # TODO: do attention 
+
+
+class TransformerDecoderBlock(nn.Sequential):
+    def __init__(self, emb_size, n_classes=4, drop_p=0.5, forward_expansion=4, forward_drop_p=0.5):
+        '''
+        n_classes == num of object queries
+        '''
+        # TODO: try linearly project feature to object queries
+        self.obj_query = nn.Parameters(torch.randn(n_classes, emb_size))
+
+        super().__init__(
+            ResidualAdd(nn.Sequential(
+                nn.LayerNorm(emb_size),
+                DeformableAttention(self.obj_query, drop_p),
+                nn.Dropout(drop_p)
+            )),
+            ResidualAdd(nn.Sequential(
+                nn.LayerNorm(emb_size),
+                FeedForwardBlock(
+                    emb_size, expansion=forward_expansion, drop_p=forward_drop_p),
+                nn.Dropout(drop_p)
+            )
+            ))
+
+
+class TransformerDecoder(nn.Sequential):
+    def __init__(self, depth, emb_size):
+        super().__init__(*[TransformerDecoderBlock(emb_size) for _ in range(depth)])
+
+
 class Conformer(nn.Sequential):
     def __init__(self, emb_size=40, depth=6, n_classes=4, **kwargs):
         '''

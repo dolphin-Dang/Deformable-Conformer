@@ -233,7 +233,7 @@ class ClassificationHead2(nn.Module):
         Input: (batch_size, n_classes, emb_size)
         '''    
 
-        xs = torch.chunk(x, chunks=self.n_classes, dim=1)
+        xs = torch.chunk(input, chunks=self.n_classes, dim=1)
         outputs = []
         for i, mlp in enumerate(self.classification_mlps):
             output = mlp(xs[i].squeeze(dim=1))

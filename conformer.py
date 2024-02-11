@@ -240,7 +240,8 @@ class ClassificationHead2(nn.Module):
             output_max, _ = torch.max(output, dim=1, keepdim=True)
             outputs.append(output_max)
         output = torch.cat(outputs, dim=1)
-        return input, output
+        # return input, output
+        return output
 
 
 class DeformableCrossAttention(nn.Module):
@@ -339,9 +340,9 @@ class TransformerDecoder(nn.Module):
     def __init__(self, depth, n_classes=4, emb_size=40):
         super().__init__()
         self.depth = depth
-        self.decoder_blocks = [TransformerDecoderBlock(emb_size, n_classes=n_classes) for _ in range(depth)]
+        self.decoder_blocks = [TransformerDecoderBlock(emb_size, n_classes=n_classes).cuda() for _ in range(depth)]
         # TODO: try linearly project feature to object queries
-        self.obj_query = nn.Parameter(torch.randn(n_classes, emb_size))
+        self.obj_query = nn.Parameter(torch.randn(n_classes, emb_size)).cuda()
 
     def forward(self, input):
         '''
@@ -382,7 +383,7 @@ class ExP():
         self.batch_size = 72
         self.n_epochs = 500
         self.c_dim = 4
-        self.lr = 0.0002
+        self.lr = 0.002
         self.b1 = 0.5
         self.b2 = 0.999
         self.dimension = (190, 50)
@@ -575,8 +576,8 @@ class ExP():
                 img = torch.cat((img, aug_data))
                 label = torch.cat((label, aug_label))
                 
-
-                tok, outputs = self.model(img)
+                outputs = self.model(img)
+                # tok, outputs = self.model(img)
 
                 loss = self.criterion_cls(outputs, label) 
 
@@ -590,7 +591,7 @@ class ExP():
             # test process
             if (e + 1) % 1 == 0:
                 self.model.eval()
-                Tok, Cls = self.model(test_data)
+                Cls = self.model(test_data)
 
 
                 loss_test = self.criterion_cls(Cls, test_label)
@@ -660,6 +661,7 @@ def main():
         result_write.write('Subject ' + str(i + 1) + ' : ' + 'The average accuracy is: ' + str(averAcc) + "\n")
 
         endtime = datetime.datetime.now()
+        result_write.write('subject %d duration: '%(i+1) + str(endtime - starttime))
         print('subject %d duration: '%(i+1) + str(endtime - starttime))
         best = best + bestAcc
         aver = aver + averAcc

@@ -109,7 +109,9 @@ class MultiHeadAttention(nn.Module):
         self.att_drop = nn.Dropout(dropout)
         self.projection = nn.Linear(emb_size, emb_size)
 
-    def forward(self, x: Tensor, mask: Tensor = None) -> Tensor:
+    def forward(self, x: Tensor, mask: Tensor = None, query: Tensor = None) -> Tensor:
+        if query != None:
+            queries = rearrange(query, "b n (h d) -> b h n d", h=self.num_heads)
         queries = rearrange(self.queries(x), "b n (h d) -> b h n d", h=self.num_heads)
         keys = rearrange(self.keys(x), "b n (h d) -> b h n d", h=self.num_heads)
         values = rearrange(self.values(x), "b n (h d) -> b h n d", h=self.num_heads)
@@ -207,71 +209,157 @@ class ClassificationHead(nn.Sequential):
         return x, out
 
 
-class DeformableAttention(nn.Module):
-    def __init__(self, query, drop_p, num_of_points=10):
+class ClassificationHead2(nn.Module):
+    def __init__(self, emb_size=40, n_classes=4):
+        super().__init__()
+        self.emb_size = emb_size
+        self.n_classes = n_classes
+
+        self.classification_mlps = nn.ModuleList()
+        for _ in range(n_classes):
+            mlp = nn.Sequential(
+                nn.Linear(emb_size, 256),
+                nn.ELU(),
+                nn.Dropout(0.5),
+                nn.Linear(256, 32),
+                nn.ELU(),
+                nn.Dropout(0.3),
+                nn.Linear(32, 4)                
+            )
+            self.classification_mlps.append(mlp)
+
+    def forward(self, input):
         '''
-        query: (n_classes, emb_size)
+        Input: (batch_size, n_classes, emb_size)
+        '''    
+
+        xs = torch.chunk(x, chunks=self.n_classes, dim=1)
+        outputs = []
+        for i, mlp in enumerate(self.classification_mlps):
+            output = mlp(xs[i].squeeze(dim=1))
+            output_max, _ = torch.max(output, dim=1, keepdim=True)
+            outputs.append(output_max)
+        output = torch.cat(outputs, dim=1)
+        return input, output
+
+
+class DeformableCrossAttention(nn.Module):
+    def __init__(self, num_heads, emb_size, drop_p=0.3, num_of_points=10):
+        '''
+        query: (bs, n_classes, emb_size)
 
         Use nn.Linear to get the reference points and weights.
         '''
-        self.query = query
+        super().__init__()
         self.drop_p = drop_p
-        
+        self.num_of_points = num_of_points
+
         self.fc_pts = nn.Linear(emb_size, num_of_points)
         self.fc_w = nn.Linear(emb_size, num_of_points)
+
+        self.att = MultiHeadAttention(emb_size, num_heads, drop_p)
         
 
-    def forward(input):
+    def forward(self, input, query):
+        # print("*** DCA forward ***")
         bs, n, e = input.shape
-        ref_pts = self.fc_pts(input) # (n_classes, num_of_points) point offset
-        ref_weight = self.fc_w(input).sigmoid() # (n_classes, num_of_points) point weight
-        # TODO: normalize ref_pts to [0, n]
+        ref_pts_idx = self.fc_pts(query) # (bs, n_classes, num_of_points) point offset
+        ref_pts_idx = torch.floor(
+            torch.sigmoid(ref_pts_idx) * n
+        ).long() # int [0, n-1]
 
-        indices_lists = ref_pts.split(1, dim=0)
-        indices_lists = [t.squeeze().tolist() for t in indices_lists] # list of list
+        ref_weight = self.fc_w(query) # (bs, n_classes, num_of_points) point weight
+        ref_weight = F.softmax(ref_weight, -1) # float [0,1]
 
-        weight_lists = ref_weight.split(1, dim=0)
+        indices_tuple = ref_pts_idx.split(1, dim=1)
+        indices_lists = [t.squeeze() for t in indices_tuple] # list of idx tensor (bs, num_of_points)
+
+        weight_lists = ref_weight.split(1, dim=1)
         weight_lists = [t.squeeze() for t in weight_lists] # list of tensor
+
         # list of (bs, num_of_points, e) tensors with weight multiplied
         deform_tensors = []
         for i in range(len(indices_lists)):
-            tmp_t = input[:, indices_lists[i], :] # (bs, num_of_points, e)
-            weights_tensor = torch.tensor(weight_lists[i])[None, :, None] # (None, num_of_points, None)
+            index = indices_lists[i].unsqueeze(-1).repeat(1,1,e)
+            tmp_t = input.gather(1, index) # (bs, num_of_points, e)
+            weights_tensor = weight_lists[i].unsqueeze(-1).repeat(1,1,e) # (bs, num_of_points, e)
+            # print(weight_lists[i].shape)
+            # print(tmp_t.shape)
+            # print(weights_tensor.shape)
             deform_tensors.append(tmp_t * weights_tensor)
 
-        # TODO: do attention 
+        att_ans_list = []
+        for t in deform_tensors:
+            att = self.att(x=t, mask=None, query=query) # (bs, num_of_points, e)
+            att = torch.sum(att, dim=1) # (bs, e)
+            att_ans_list.append(att)
+        
+        ans = torch.stack(att_ans_list, dim=1)
+        return ans
 
-
-class TransformerDecoderBlock(nn.Sequential):
-    def __init__(self, emb_size, n_classes=4, drop_p=0.5, forward_expansion=4, forward_drop_p=0.5):
+class TransformerDecoderBlock(nn.Module):
+    def __init__(self, emb_size, 
+                num_heads=10, 
+                n_classes=4, 
+                drop_p=0.5, 
+                forward_expansion=4, 
+                forward_drop_p=0.5):
         '''
         n_classes == num of object queries
         '''
+        super().__init__()
+        self.p1 = ResidualAdd(nn.Sequential(
+                    nn.LayerNorm(emb_size),
+                    MultiHeadAttention(emb_size, num_heads, drop_p),
+                    nn.Dropout(drop_p)
+                ))
+        # self.p2 = 
+        self.ln = nn.LayerNorm(emb_size)
+        self.deform_cross_att = DeformableCrossAttention(num_heads, emb_size, drop_p)
+        self.dropout = nn.Dropout(drop_p)
+        
+        self.p3 = ResidualAdd(nn.Sequential(
+                    nn.LayerNorm(emb_size),
+                    FeedForwardBlock(
+                        emb_size, expansion=forward_expansion, drop_p=forward_drop_p),
+                    nn.Dropout(drop_p)
+                ))
+
+    def forward(self, feature, query):
+        '''
+        feature, query: (bs, n, emb)
+        '''
+        query = self.p1(query)
+        query = self.ln(query)
+        att = self.dropout(self.deform_cross_att(feature, query))
+        att = self.p3(att)
+        return att
+
+class TransformerDecoder(nn.Module):
+    def __init__(self, depth, n_classes=4, emb_size=40):
+        super().__init__()
+        self.depth = depth
+        self.decoder_blocks = [TransformerDecoderBlock(emb_size, n_classes=n_classes) for _ in range(depth)]
         # TODO: try linearly project feature to object queries
-        self.obj_query = nn.Parameters(torch.randn(n_classes, emb_size))
+        self.obj_query = nn.Parameter(torch.randn(n_classes, emb_size))
 
-        super().__init__(
-            ResidualAdd(nn.Sequential(
-                nn.LayerNorm(emb_size),
-                DeformableAttention(self.obj_query, drop_p),
-                nn.Dropout(drop_p)
-            )),
-            ResidualAdd(nn.Sequential(
-                nn.LayerNorm(emb_size),
-                FeedForwardBlock(
-                    emb_size, expansion=forward_expansion, drop_p=forward_drop_p),
-                nn.Dropout(drop_p)
-            )
-            ))
-
-
-class TransformerDecoder(nn.Sequential):
-    def __init__(self, depth, emb_size):
-        super().__init__(*[TransformerDecoderBlock(emb_size) for _ in range(depth)])
+    def forward(self, input):
+        '''
+        input: (bs, n, emb)
+        self.query: (n, emb)
+        '''
+        bs, n, emb = input.shape
+        batch_query = self.obj_query.unsqueeze(0).repeat(bs, 1, 1) #(bs, n, e)
+        for i in range(self.depth):
+            batch_query = self.decoder_blocks[i](input, batch_query)
+        return batch_query
 
 
 class Conformer(nn.Sequential):
-    def __init__(self, emb_size=40, depth=6, n_classes=4, **kwargs):
+    def __init__(self, emb_size=40, 
+            encoder_depth=6, 
+            decoder_depth=6,
+            n_classes=4, **kwargs):
         '''
         input:
             emb_size: k the num of temporal conv filters
@@ -281,8 +369,10 @@ class Conformer(nn.Sequential):
         super().__init__(
 
             PatchEmbedding(emb_size),
-            TransformerEncoder(depth, emb_size),
-            ClassificationHead(emb_size, n_classes)
+            TransformerEncoder(encoder_depth, emb_size),
+            # ClassificationHead(emb_size, n_classes)
+            TransformerDecoder(decoder_depth, n_classes),
+            ClassificationHead2(emb_size, n_classes)
         )
 
 

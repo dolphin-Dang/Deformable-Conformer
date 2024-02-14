@@ -15,24 +15,66 @@ import datetime
 import torch
 from torch import nn
 
+import json
+
 # from torch.backends import cudnn
 # cudnn.benchmark = False
 # cudnn.deterministic = True
 
 from ExP import ExP
 
+config = {
+    'res_path': './results/sub_result.txt',
+    'sub_res_path': "./results/log_subject%d.txt",
+    
+    # model config
+    'emb_size': 40,
+    'encoder_depth': 6,
+    'decoder_depth': 3,
+    'n_classes': 4,
+    
+    'encoder_config': {
+            'num_heads': 10,
+            'drop_p': 0.5,
+            'forward_expansion': 4,
+            'forward_drop_p': 0.5
+        },
+    
+    'decoder_config': {
+            'num_heads': 10,
+            'drop_p': 0.5,
+            'forward_expansion': 4,
+            'forward_drop_p': 0.5,
+            'num_of_points': 10
+        },
+    
+    'hidden_size_1': 256,
+    'hidden_size_2': 32,
+    'drop_p_1': 0.5,
+    'drop_p_2': 0.3,
+    
+    # training config
+    'lr': 0.002,
+    'b1': 0.5,
+    'b2': 0.999
+}
+
+
+
 def main():
     best = 0
     aver = 0
     
-    res_path = "./results/sub_result.txt"
+    res_path = config["res_path"]
     dir_name = os.path.dirname(res_path)
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
 
     result_write = open(res_path, "w")
-
-
+    result_write.write('config: \n')
+    result_write.write(json.dumps(config, indent=4))
+    result_write.write("\n\n")
+    
     for i in range(9):
         starttime = datetime.datetime.now()
 

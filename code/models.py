@@ -174,14 +174,27 @@ class TransformerEncoderBlock(nn.Sequential):
 
 
 class TransformerEncoder(nn.Sequential):
-    def __init__(self, depth, emb_size):
-        super().__init__(*[TransformerEncoderBlock(emb_size) for _ in range(depth)])
+    def __init__(self, depth, emb_size, config=None):
+        if config != None:
+            super().__init__(*[TransformerEncoderBlock(emb_size, **config["encoder_config"]) for _ in range(depth)])
+        else:
+            super().__init__(*[TransformerEncoderBlock(emb_size) for _ in range(depth)])
 
 
 class ClassificationHead(nn.Sequential):
-    def __init__(self, emb_size, n_classes):
+    def __init__(self, emb_size=40, n_classes=4, config=None):
         super().__init__()
         
+        hidden_size_1 = 256
+        hidden_size_2 = 32
+        drop_p_1 = 0.5
+        drop_p_2 = 0.3
+        if config != None:
+            hidden_size_1 = config["hidden_size_1"]
+            hidden_size_2 = config["hidden_size_2"]
+            drop_p_1 = config["drop_p_1"]
+            drop_p_2 = config["drop_p_2"]
+            
         # global average pooling
         self.clshead = nn.Sequential(
             Reduce('b n e -> b e', reduction='mean'),
@@ -189,13 +202,15 @@ class ClassificationHead(nn.Sequential):
             nn.Linear(emb_size, n_classes)
         )
         self.fc = nn.Sequential(
-            nn.Linear(2440, 256),
+            # 2440 = 61*40
+            # another hard code potential bug here
+            nn.Linear(2440, hidden_size_1),
             nn.ELU(),
-            nn.Dropout(0.5),
-            nn.Linear(256, 32),
+            nn.Dropout(drop_p_1),
+            nn.Linear(hidden_size_1, hidden_size_2),
             nn.ELU(),
-            nn.Dropout(0.3),
-            nn.Linear(32, 4)
+            nn.Dropout(drop_p_2),
+            nn.Linear(hidden_size_2, n_classes)
         )
 
     def forward(self, x):
@@ -206,28 +221,38 @@ class ClassificationHead(nn.Sequential):
 
 
 class ClassificationHead2(nn.Module):
-    def __init__(self, emb_size=40, n_classes=4):
+    def __init__(self, emb_size=40, n_classes=4, config=None):
         super().__init__()
         self.emb_size = emb_size
         self.n_classes = n_classes
 
+        hidden_size_1 = 256
+        hidden_size_2 = 32
+        drop_p_1 = 0.5
+        drop_p_2 = 0.3
+        if config != None:
+            hidden_size_1 = config["hidden_size_1"]
+            hidden_size_2 = config["hidden_size_2"]
+            drop_p_1 = config["drop_p_1"]
+            drop_p_2 = config["drop_p_2"]
+            
         self.classification_mlps = nn.ModuleList()
         for _ in range(n_classes):
             mlp = nn.Sequential(
-                nn.Linear(emb_size, 256),
+                nn.Linear(emb_size, hidden_size_1),
                 nn.ELU(),
-                nn.Dropout(0.5),
-                nn.Linear(256, 32),
+                nn.Dropout(drop_p_1),
+                nn.Linear(hidden_size_1, hidden_size_2),
                 nn.ELU(),
-                nn.Dropout(0.3),
-                nn.Linear(32, 4)                
+                nn.Dropout(drop_p_2),
+                nn.Linear(hidden_size_2, n_classes)
             )
             self.classification_mlps.append(mlp)
 
     def forward(self, input):
         '''
         Input: (batch_size, n_classes, emb_size)
-        '''    
+        '''
 
         xs = torch.chunk(input, chunks=self.n_classes, dim=1)
         outputs = []
@@ -241,7 +266,7 @@ class ClassificationHead2(nn.Module):
 
 
 class DeformableCrossAttention(nn.Module):
-    def __init__(self, num_heads, emb_size, drop_p=0.3, num_of_points=10):
+    def __init__(self, num_heads, emb_size, drop_p=0.5, num_of_points=10):
         '''
         query: (bs, n_classes, emb_size)
 
@@ -297,10 +322,10 @@ class DeformableCrossAttention(nn.Module):
 class TransformerDecoderBlock(nn.Module):
     def __init__(self, emb_size, 
                 num_heads=10, 
-                n_classes=4, 
                 drop_p=0.5, 
                 forward_expansion=4, 
-                forward_drop_p=0.5):
+                forward_drop_p=0.5,
+                num_of_points=10):
         '''
         n_classes == num of object queries
         '''
@@ -312,7 +337,7 @@ class TransformerDecoderBlock(nn.Module):
                 ))
         # self.p2 = 
         self.ln = nn.LayerNorm(emb_size)
-        self.deform_cross_att = DeformableCrossAttention(num_heads, emb_size, drop_p)
+        self.deform_cross_att = DeformableCrossAttention(num_heads, emb_size, drop_p, num_of_points)
         self.dropout = nn.Dropout(drop_p)
         
         self.p3 = ResidualAdd(nn.Sequential(
@@ -333,20 +358,33 @@ class TransformerDecoderBlock(nn.Module):
         return att
 
 class TransformerDecoder(nn.Module):
-    def __init__(self, depth, n_classes=4, emb_size=40):
+    def __init__(self, depth, n_classes=4, emb_size=40, config=None):
         super().__init__()
         self.depth = depth
-        self.decoder_blocks = [TransformerDecoderBlock(emb_size, n_classes=n_classes).cuda() for _ in range(depth)]
-        # TODO: try linearly project feature to object queries
+        if config != None:
+            self.decoder_blocks = \
+                [TransformerDecoderBlock(emb_size, **config["decoder_config"]).cuda() for _ in range(depth)]
+        else:
+            self.decoder_blocks = [TransformerDecoderBlock(emb_size).cuda() for _ in range(depth)]
+        # try linearly project feature to object queries
+        # hard code 61 here: a potential bug
+        # self.obj_query_proj = nn.Linear(61, n_classes)
+        
+        # randomly initialize query
         self.obj_query = nn.Parameter(torch.randn(n_classes, emb_size)).cuda()
 
+        '''
+        note: two ways of query initialization hardly influence performance.
+        '''
+        
     def forward(self, input):
         '''
         input: (bs, n, emb)
-        self.query: (n, emb)
         '''
         bs, n, emb = input.shape
-        batch_query = self.obj_query.unsqueeze(0).repeat(bs, 1, 1) #(bs, n, e)
+        
+        # batch_query = self.obj_query_proj(input.permute(0,2,1)).permute(0,2,1)
+        batch_query = self.obj_query.unsqueeze(0).repeat(bs, 1, 1) #(bs, n_cls, e)
         for i in range(self.depth):
             batch_query = self.decoder_blocks[i](input, batch_query)
         return batch_query
@@ -355,19 +393,26 @@ class TransformerDecoder(nn.Module):
 class Conformer(nn.Sequential):
     def __init__(self, emb_size=40, 
             encoder_depth=6, 
-            decoder_depth=6,
-            n_classes=4, **kwargs):
+            decoder_depth=3,
+            n_classes=4, 
+            config=None):
         '''
         input:
             emb_size: k the num of temporal conv filters
             depth: num of transformer encoder blocks
             n_class: output num of last fully-connected layer
         '''
+        if config != None:
+            emb_size = config["emb_size"]
+            encoder_depth = config["encoder_depth"]
+            decoder_depth = config["decoder_depth"]
+            n_classes = config["n_classes"]
+        
         super().__init__(
 
             PatchEmbedding(emb_size),
-            TransformerEncoder(encoder_depth, emb_size),
+            TransformerEncoder(encoder_depth, emb_size, config),
             # ClassificationHead(emb_size, n_classes)
-            TransformerDecoder(decoder_depth, n_classes),
+            TransformerDecoder(decoder_depth, n_classes, emb_size, config),
             ClassificationHead2(emb_size, n_classes)
         )

@@ -20,7 +20,7 @@ os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID' # arrange GPUs
 os.environ["CUDA_VISIBLE_DEVICES"] = ','.join(map(str, gpus)) # choose GPUs
 
 class ExP():
-    def __init__(self, nsub):
+    def __init__(self, nsub, config=None):
         super(ExP, self).__init__()
         self.batch_size = 72
         self.n_epochs = 2000
@@ -28,15 +28,21 @@ class ExP():
         self.lr = 0.0002
         self.b1 = 0.5
         self.b2 = 0.999
-        self.dimension = (190, 50)
         self.nSub = nsub
 
         self.start_epoch = 0
         # self.root = '/Data/strict_TE/'
         self.root = './data/rawMat/'
-
-        
         res_path = "./results/log_subject%d.txt" % self.nSub
+        
+        self.config = None
+        self.config = config
+        if self.config != None:
+            self.lr = config["lr"]
+            self.b1 = config["b1"]
+            self.b2 = config["b2"]
+            res_path = config["sub_res_path"] % self.nSub
+        
         dir_name = os.path.dirname(res_path)
         if not os.path.exists(dir_name):
             os.makedirs(dir_name)
@@ -50,13 +56,13 @@ class ExP():
         self.criterion_l2 = torch.nn.MSELoss().cuda()
         self.criterion_cls = torch.nn.CrossEntropyLoss().cuda()
 
-        self.model = Conformer().cuda()
+        self.model = Conformer(config=self.config).cuda()
         self.model = nn.DataParallel(self.model, device_ids=[i for i in range(len(gpus))])
         self.model = self.model.cuda()
         summary(self.model, (1, 22, 1000))
 
     # Segmentation and Reconstruction (S&R) data augmentation
-    def interaug(self, timg, label):  
+    def interaug(self, timg, label):
         # print("In interaug.")
         aug_data = []
         aug_label = []

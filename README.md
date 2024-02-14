@@ -1,3 +1,7 @@
+# Deformable Conformer
+Modified from EEG-Conformer. Add deformable transformer decoder layers with deformable cross attention used in it.
+
+
 # EEG-Conformer
 
 ### EEG Conformer: Convolutional Transformer for EEG Decoding and Visualization [[Paper](https://ieeexplore.ieee.org/document/9991178)]

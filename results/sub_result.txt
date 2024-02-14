@@ -2,7 +2,7 @@ config:
 {
     "res_path": "./results/sub_result.txt",
     "sub_res_path": "./results/log_subject%d.txt",
-    "emb_size": 40,
+    "emb_size": 60,
     "encoder_depth": 6,
     "decoder_depth": 3,
     "n_classes": 4,

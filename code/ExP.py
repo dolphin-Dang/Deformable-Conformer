@@ -23,8 +23,7 @@ class ExP():
     def __init__(self, nsub, config=None):
         super(ExP, self).__init__()
         self.batch_size = 72
-        self.n_epochs = 2000
-        self.c_dim = 4
+        self.n_epochs = 500
         self.lr = 0.0002
         self.b1 = 0.5
         self.b2 = 0.999
@@ -38,6 +37,8 @@ class ExP():
         self.config = None
         self.config = config
         if self.config != None:
+            self.batch_size = config["batch_size"]
+            self.n_epochs = config["n_epochs"]
             self.lr = config["lr"]
             self.b1 = config["b1"]
             self.b2 = config["b2"]

@@ -76,6 +76,7 @@ def main():
     result_write.write('config: \n')
     result_write.write(json.dumps(config, indent=4))
     result_write.write("\n\n")
+    print(config)
     
     for i in range(9):
         starttime = datetime.datetime.now()
@@ -91,7 +92,7 @@ def main():
 
 
         print('Subject %d' % (i+1))
-        exp = ExP(i + 1)
+        exp = ExP(i + 1, config)
 
         bestAcc, averAcc, Y_true, Y_pred = exp.train()
         print('THE BEST ACCURACY IS ' + str(bestAcc))

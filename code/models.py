@@ -407,7 +407,7 @@ class Conformer(nn.Sequential):
             encoder_depth = config["encoder_depth"]
             decoder_depth = config["decoder_depth"]
             n_classes = config["n_classes"]
-        
+        print(f"Emb_size: {emb_size}")
         super().__init__(
 
             PatchEmbedding(emb_size),

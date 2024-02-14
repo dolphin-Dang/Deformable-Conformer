@@ -4,3 +4,7 @@ conformer
 # data
 data
 
+# cache
+.ipynb_checkpoints
+__pycache__
+

@@ -103,6 +103,7 @@ class MultiHeadAttention(nn.Module):
         self.values = nn.Linear(emb_size, emb_size)
         self.att_drop = nn.Dropout(dropout)
         self.projection = nn.Linear(emb_size, emb_size)
+        assert self.emb_size % self.num_heads == 0, "Invalid head number!"
 
     def forward(self, x: Tensor, mask: Tensor = None, query: Tensor = None) -> Tensor:
         if query != None:
@@ -235,7 +236,17 @@ class ClassificationHead2(nn.Module):
             hidden_size_2 = config["hidden_size_2"]
             drop_p_1 = config["drop_p_1"]
             drop_p_2 = config["drop_p_2"]
-            
+        
+        # self.classification_proj = nn.Sequential(
+        #         nn.Linear(emb_size, hidden_size_1),
+        #         nn.ELU(),
+        #         nn.Dropout(drop_p_1),
+        #         nn.Linear(hidden_size_1, hidden_size_2),
+        #         nn.ELU(),
+        #         nn.Dropout(drop_p_2),
+        #         nn.Linear(hidden_size_2, 1)
+        #     )
+        
         self.classification_mlps = nn.ModuleList()
         for _ in range(n_classes):
             mlp = nn.Sequential(
@@ -245,7 +256,7 @@ class ClassificationHead2(nn.Module):
                 nn.Linear(hidden_size_1, hidden_size_2),
                 nn.ELU(),
                 nn.Dropout(drop_p_2),
-                nn.Linear(hidden_size_2, n_classes)
+                nn.Linear(hidden_size_2, 2)
             )
             self.classification_mlps.append(mlp)
 
@@ -253,15 +264,38 @@ class ClassificationHead2(nn.Module):
         '''
         Input: (batch_size, n_classes, emb_size)
         '''
-
-        xs = torch.chunk(input, chunks=self.n_classes, dim=1)
+        
+        xs = torch.chunk(input, chunks=self.n_classes, dim=1) # (bs, 1, emb)
+        
+        # multiple mlps, binary classification
         outputs = []
         for i, mlp in enumerate(self.classification_mlps):
+            # output = F.softmax(mlp(xs[i].squeeze(dim=1))) # (bs, 2): binary classification
             output = mlp(xs[i].squeeze(dim=1))
-            output_max, _ = torch.max(output, dim=1, keepdim=True)
-            outputs.append(output_max)
+            outputs.append(output[:, 0].unsqueeze(1)) # the prob that query is the i-th class
         output = torch.cat(outputs, dim=1)
-        # return input, output
+        
+        
+        # single mlp, multiple classification
+        # use the first mlps
+        # outputs = []
+        # mlp = self.classification_mlp
+        # for i in range(self.n_classes):
+        #     # output = F.softmax(mlp(xs[i].squeeze(dim=1)))
+        #     output = mlp(xs[i].squeeze(dim=1))
+        #     outputs.append(output[:, i].unsqueeze(1))
+        # output = torch.cat(outputs, dim=1)
+        
+        # use one mlp to do projection
+        # output = self.classification_proj(input).squeeze()
+       
+        # strange good performance
+        # outputs = []
+        # for i, mlp in enumerate(self.classification_mlps):
+        #     output = mlp(xs[i].squeeze(dim=1))
+        #     output_max, _ = torch.max(output, dim=1, keepdim=True)
+        #     outputs.append(output_max)
+        # output = torch.cat(outputs, dim=1)
         return output
 
 
@@ -318,7 +352,9 @@ class DeformableCrossAttention(nn.Module):
         
         ans = torch.stack(att_ans_list, dim=1)
         return ans
-
+    
+        
+        
 class TransformerDecoderBlock(nn.Module):
     def __init__(self, emb_size, 
                 num_heads=10, 
@@ -338,6 +374,7 @@ class TransformerDecoderBlock(nn.Module):
         # self.p2 = 
         self.ln = nn.LayerNorm(emb_size)
         self.deform_cross_att = DeformableCrossAttention(num_heads, emb_size, drop_p, num_of_points)
+        # self.cross_att = MultiHeadAttention(emb_size, num_heads, drop_p)
         self.dropout = nn.Dropout(drop_p)
         
         self.p3 = ResidualAdd(nn.Sequential(
@@ -349,11 +386,16 @@ class TransformerDecoderBlock(nn.Module):
 
     def forward(self, feature, query):
         '''
-        feature, query: (bs, n, emb)
+        feature: (bs, n, emb)
+        query: (bs, n_classes, emb)
         '''
         query = self.p1(query)
         query = self.ln(query)
-        att = self.dropout(self.deform_cross_att(feature, query))
+        att = self.deform_cross_att(feature, query)
+        # att = self.cross_att(query, mask=None, query=feature) # transformer decoder
+        # print("feature: ", feature.shape)
+        # print("query: ", query.shape)
+        att = self.dropout(att)
         att = self.p3(att)
         return att
 
@@ -382,6 +424,7 @@ class TransformerDecoder(nn.Module):
         input: (bs, n, emb)
         '''
         bs, n, emb = input.shape
+        # print(input.shape)
         
         # batch_query = self.obj_query_proj(input.permute(0,2,1)).permute(0,2,1)
         batch_query = self.obj_query.unsqueeze(0).repeat(bs, 1, 1) #(bs, n_cls, e)

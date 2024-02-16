@@ -28,7 +28,7 @@ config = {
     'sub_res_path': "./results/log_subject%d.txt",
     
     # model config
-    'emb_size': 60,
+    'emb_size': 40,
     'encoder_depth': 6,
     'decoder_depth': 3,
     'n_classes': 4,
@@ -45,7 +45,7 @@ config = {
             'drop_p': 0.5,
             'forward_expansion': 4,
             'forward_drop_p': 0.5,
-            'num_of_points': 10
+            'num_of_points': 8
         },
     
     'hidden_size_1': 256,
@@ -56,8 +56,8 @@ config = {
     # training config (adam)
     'batch_size': 72,
     'n_epochs': 500,
-    'lr': 0.002,
-    'b1': 0.5,
+    'lr': 0.001,
+    'b1': 0.9,
     'b2': 0.999
 }
 

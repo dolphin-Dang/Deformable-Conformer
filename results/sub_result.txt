@@ -7,31 +7,65 @@ config:
     "decoder_depth": 3,
     "n_classes": 4,
     "encoder_config": {
-        "num_heads": 2,
+        "num_heads": 8,
         "drop_p": 0.5,
         "forward_expansion": 4,
         "forward_drop_p": 0.5,
-        "num_of_points": 8
+        "num_of_points": 16
     },
     "decoder_config": {
-        "num_heads": 2,
+        "num_heads": 8,
         "drop_p": 0.5,
         "forward_expansion": 4,
         "forward_drop_p": 0.5,
-        "num_of_points": 8
+        "num_of_points": 12
     },
     "hidden_size_1": 256,
-    "hidden_size_2": 32,
+    "hidden_size_2": 64,
     "drop_p_1": 0.5,
     "drop_p_2": 0.3,
     "batch_size": 72,
-    "n_epochs": 500,
+    "n_epochs": 800,
     "lr": 0.001,
     "b1": 0.9,
     "b2": 0.999
 }
 
-Subject 1 : Seed is: 1852
-Subject 1 : The best accuracy is: 0.8263888888888888
-Subject 1 : The average accuracy is: 0.7188888888888886
-subject 1 duration: 0:04:09.615178
+Subject 1 : Seed is: 942
+Subject 1 : The best accuracy is: 0.8819444444444444
+Subject 1 : The average accuracy is: 0.7800998263888894
+subject 1 duration: 0:06:54.189212
+Subject 2 : Seed is: 406
+Subject 2 : The best accuracy is: 0.5520833333333334
+Subject 2 : The average accuracy is: 0.4481727430555555
+subject 2 duration: 0:06:50.673101
+Subject 3 : Seed is: 78
+Subject 3 : The best accuracy is: 0.9305555555555556
+Subject 3 : The average accuracy is: 0.8248828124999984
+subject 3 duration: 0:06:51.984944
+Subject 4 : Seed is: 1544
+Subject 4 : The best accuracy is: 0.7708333333333334
+Subject 4 : The average accuracy is: 0.6094748263888888
+subject 4 duration: 0:06:52.674760
+Subject 5 : Seed is: 1769
+Subject 5 : The best accuracy is: 0.65625
+Subject 5 : The average accuracy is: 0.5502560763888893
+subject 5 duration: 0:06:53.284726
+Subject 6 : Seed is: 873
+Subject 6 : The best accuracy is: 0.6875
+Subject 6 : The average accuracy is: 0.5804687499999994
+subject 6 duration: 0:06:32.102762
+Subject 7 : Seed is: 873
+Subject 7 : The best accuracy is: 0.9131944444444444
+Subject 7 : The average accuracy is: 0.7767708333333327
+subject 7 duration: 0:06:32.502705
+Subject 8 : Seed is: 873
+Subject 8 : The best accuracy is: 0.8784722222222222
+Subject 8 : The average accuracy is: 0.7911848958333332
+subject 8 duration: 0:06:54.028028
+Subject 9 : Seed is: 873
+Subject 9 : The best accuracy is: 0.8472222222222222
+Subject 9 : The average accuracy is: 0.7671657986111111
+subject 9 duration: 0:06:34.775140
+**The average Best accuracy is: 0.7908950617283951
+The average Aver accuracy is: 0.6809418402777776

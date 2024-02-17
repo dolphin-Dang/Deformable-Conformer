@@ -34,29 +34,29 @@ config = {
     'n_classes': 4,
     
     'encoder_config': {
-            'num_heads': 2,
+            'num_heads': 8,
             'drop_p': 0.5,
             'forward_expansion': 4,
             'forward_drop_p': 0.5,
-            'num_of_points': 8
+            'num_of_points': 16
         },
     
     'decoder_config': {
-            'num_heads': 2,
+            'num_heads': 8,
             'drop_p': 0.5,
             'forward_expansion': 4,
             'forward_drop_p': 0.5,
-            'num_of_points': 8
+            'num_of_points': 12
         },
     
     'hidden_size_1': 256,
-    'hidden_size_2': 32,
+    'hidden_size_2': 64,
     'drop_p_1': 0.5,
     'drop_p_2': 0.3,
     
     # training config (adam)
     'batch_size': 72,
-    'n_epochs': 500,
+    'n_epochs': 800,
     'lr': 0.001,
     'b1': 0.9,
     'b2': 0.999

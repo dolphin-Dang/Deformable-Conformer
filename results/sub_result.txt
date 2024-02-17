@@ -7,13 +7,14 @@ config:
     "decoder_depth": 3,
     "n_classes": 4,
     "encoder_config": {
-        "num_heads": 10,
+        "num_heads": 2,
         "drop_p": 0.5,
         "forward_expansion": 4,
-        "forward_drop_p": 0.5
+        "forward_drop_p": 0.5,
+        "num_of_points": 8
     },
     "decoder_config": {
-        "num_heads": 10,
+        "num_heads": 2,
         "drop_p": 0.5,
         "forward_expansion": 4,
         "forward_drop_p": 0.5,
@@ -30,7 +31,7 @@ config:
     "b2": 0.999
 }
 
-Subject 1 : Seed is: 1247
-Subject 1 : The best accuracy is: 0.8784722222222222
-Subject 1 : The average accuracy is: 0.7637152777777776
-subject 1 duration: 0:04:03.166496
+Subject 1 : Seed is: 1852
+Subject 1 : The best accuracy is: 0.8263888888888888
+Subject 1 : The average accuracy is: 0.7188888888888886
+subject 1 duration: 0:04:09.615178

@@ -92,6 +92,27 @@ class PatchEmbedding(nn.Module):
         # print(x.shape)
         return x
 
+class Embedding(nn.Module):
+    def __init__(self, d_model=22, max_len=1000):
+        super().__init__()
+
+        pe = torch.zeros(max_len, d_model)
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2).float() * -(math.log(10000.0) / d_model))
+
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+
+        pe = pe.unsqueeze(0)
+        self.register_buffer('pe', pe)
+        
+    def forward(self, x):
+        x = x.permute(0,1,3,2)
+        x = x + self.pe[:, :x.size(2), :]
+        x = x.squeeze()
+        return x
+
+        
 
 class MultiHeadAttention(nn.Module):
     def __init__(self, emb_size, num_heads, dropout):
@@ -106,9 +127,11 @@ class MultiHeadAttention(nn.Module):
         assert self.emb_size % self.num_heads == 0, "Invalid head number!"
 
     def forward(self, x: Tensor, mask: Tensor = None, query: Tensor = None) -> Tensor:
+        # print("*** MHA forward ***")
         if query != None:
             queries = rearrange(query, "b n (h d) -> b h n d", h=self.num_heads)
-        queries = rearrange(self.queries(x), "b n (h d) -> b h n d", h=self.num_heads)
+        else:
+            queries = rearrange(self.queries(x), "b n (h d) -> b h n d", h=self.num_heads)
         keys = rearrange(self.keys(x), "b n (h d) -> b h n d", h=self.num_heads)
         values = rearrange(self.values(x), "b n (h d) -> b h n d", h=self.num_heads)
         energy = torch.einsum('bhqd, bhkd -> bhqk', queries, keys)  
@@ -119,6 +142,7 @@ class MultiHeadAttention(nn.Module):
         scaling = self.emb_size ** (1 / 2)
         att = F.softmax(energy / scaling, dim=-1)
         att = self.att_drop(att)
+        # print(att.shape)
         out = torch.einsum('bhal, bhlv -> bhav ', att, values)
         out = rearrange(out, "b h n d -> b n (h d)")
         out = self.projection(out)
@@ -158,7 +182,8 @@ class TransformerEncoderBlock(nn.Sequential):
                  num_heads=10,
                  drop_p=0.5,
                  forward_expansion=4,
-                 forward_drop_p=0.5):
+                 forward_drop_p=0.5,
+                 num_of_points=8):
         super().__init__(
             ResidualAdd(nn.Sequential(
                 nn.LayerNorm(emb_size),
@@ -172,6 +197,51 @@ class TransformerEncoderBlock(nn.Sequential):
                 nn.Dropout(drop_p)
             )
             ))
+        
+        
+class DeformableTransformerEncoderBlock(nn.Module):
+    def __init__(self,
+                 emb_size,
+                 num_heads=10,
+                 drop_p=0.5,
+                 forward_expansion=4,
+                 forward_drop_p=0.5,
+                 num_of_points=10):
+        super().__init__()
+        self.emb_size = emb_size
+        self.num_heads = num_heads
+        self.drop_p = drop_p
+        self.forward_expansion = forward_expansion
+        self.forward_drop_p = forward_drop_p
+        
+        self.ln_1 = nn.LayerNorm(emb_size)
+        self.dca = DeformableCrossAttention(num_heads, emb_size, drop_p, num_of_points)
+        self.dropout1 = nn.Dropout(drop_p)
+        
+        self.ffc = ResidualAdd(nn.Sequential(
+                        nn.LayerNorm(emb_size),
+                        FeedForwardBlock(
+                            emb_size, expansion=forward_expansion, drop_p=forward_drop_p),
+                        nn.Dropout(drop_p)
+                    ))
+    
+    def forward(self, input):
+        x = input
+        input = self.ln_1(input)
+        # temp = input.detach()
+        input = self.dca(input, input)
+        input = self.dropout1(input) + x
+        
+        input = self.ffc(input)
+        return input
+        
+class DeformableTransformerEncoder(nn.Sequential):
+    def __init__(self, depth, emb_size, config=None):
+        if config != None:
+            super().__init__(*[DeformableTransformerEncoderBlock(emb_size, **config["encoder_config"])
+                               for _ in range(depth)])
+        else:
+            super().__init__(*[DeformableTransformerEncoderBlock(emb_size) for _ in range(depth)])     
 
 
 class TransformerEncoder(nn.Sequential):
@@ -312,7 +382,6 @@ class DeformableCrossAttention(nn.Module):
 
         self.fc_pts = nn.Linear(emb_size, num_of_points)
         self.fc_w = nn.Linear(emb_size, num_of_points)
-
         self.att = MultiHeadAttention(emb_size, num_heads, drop_p)
         
 
@@ -349,8 +418,20 @@ class DeformableCrossAttention(nn.Module):
             att = self.att(x=t, mask=None, query=query) # (bs, num_of_points, e)
             att = torch.sum(att, dim=1) # (bs, e)
             att_ans_list.append(att)
-        
         ans = torch.stack(att_ans_list, dim=1)
+
+
+        # # for long seq: add first, one attention
+        # deform_tensors = []
+        # for i in range(len(indices_lists)):
+        #     index = indices_lists[i].unsqueeze(-1).repeat(1,1,e)
+        #     tmp_t = input.gather(1, index) # (bs, num_of_points, e)
+        #     weights_tensor = weight_lists[i].unsqueeze(-1).repeat(1,1,e) # (bs, num_of_points, e)
+        #     weighted_tensor = tmp_t * weights_tensor
+        #     deform_tensors.append(weighted_tensor.sum(dim=1))
+        # deform_tensor = torch.stack(deform_tensors, dim=1)
+        # ans = self.att(x=deform_tensor, mask=None, query=query)
+        
         return ans
     
         
@@ -431,8 +512,8 @@ class TransformerDecoder(nn.Module):
         for i in range(self.depth):
             batch_query = self.decoder_blocks[i](input, batch_query)
         return batch_query
-
-
+    
+    
 class Conformer(nn.Sequential):
     def __init__(self, emb_size=40, 
             encoder_depth=6, 
@@ -454,7 +535,9 @@ class Conformer(nn.Sequential):
         super().__init__(
 
             PatchEmbedding(emb_size),
+            # Embedding(),
             TransformerEncoder(encoder_depth, emb_size, config),
+            # DeformableTransformerEncoder(encoder_depth, emb_size, config),
             # ClassificationHead(emb_size, n_classes)
             TransformerDecoder(decoder_depth, n_classes, emb_size, config),
             ClassificationHead2(emb_size, n_classes)

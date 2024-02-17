@@ -34,14 +34,15 @@ config = {
     'n_classes': 4,
     
     'encoder_config': {
-            'num_heads': 10,
+            'num_heads': 2,
             'drop_p': 0.5,
             'forward_expansion': 4,
-            'forward_drop_p': 0.5
+            'forward_drop_p': 0.5,
+            'num_of_points': 8
         },
     
     'decoder_config': {
-            'num_heads': 10,
+            'num_heads': 2,
             'drop_p': 0.5,
             'forward_expansion': 4,
             'forward_drop_p': 0.5,

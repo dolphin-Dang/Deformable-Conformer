@@ -14,6 +14,7 @@ from torch.backends import cudnn
 from torchsummary import summary
 
 import scipy.io
+import sys
 
 gpus = [0]
 os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID' # arrange GPUs
@@ -61,6 +62,13 @@ class ExP():
         self.model = nn.DataParallel(self.model, device_ids=[i for i in range(len(gpus))])
         self.model = self.model.cuda()
         summary(self.model, (1, 22, 1000))
+        
+#         with open('summary.txt', 'w') as f:
+#             original_stdout = sys.stdout 
+#             sys.stdout = f
+
+#             summary(self.model, (1, 22, 1000))
+#             sys.stdout = original_stdout
 
     # Segmentation and Reconstruction (S&R) data augmentation
     def interaug(self, timg, label):
@@ -132,6 +140,10 @@ class ExP():
         self.train_data = np.expand_dims(self.train_data, axis=1) # (288, 1, 22, 1000)
         self.train_label = np.transpose(self.train_label) # (288, 1)
         
+        # smaller time span
+        # self.train_data = self.train_data.reshape((288*4, 1, 22, 250))
+        # self.train_label = np.repeat(self.train_label, 4, axis=0)
+        
         self.allData = self.train_data
         self.allLabel = self.train_label.squeeze()
 
@@ -152,6 +164,10 @@ class ExP():
         self.test_data = np.transpose(self.test_data, (2, 0, 1))
         self.test_data = np.expand_dims(self.test_data, axis=1)
         self.test_label = np.transpose(self.test_label)
+        
+        # smaller time span
+        # self.test_data = self.test_data.reshape((288*4, 1, 22, 250))
+        # self.test_label = np.repeat(self.test_label, 4, axis=0)
 
         self.testData = self.test_data
         self.testLabel = self.test_label.squeeze()

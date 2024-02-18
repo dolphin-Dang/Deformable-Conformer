@@ -384,7 +384,7 @@ class ExP():
         self.batch_size = 72
         self.n_epochs = 2000
         self.c_dim = 4
-        self.lr = 0.002
+        self.lr = 0.0002
         self.b1 = 0.5
         self.b2 = 0.999
         self.dimension = (190, 50)

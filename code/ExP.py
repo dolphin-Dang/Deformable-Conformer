@@ -12,7 +12,7 @@ from torch.autograd import Variable
 from models import Conformer
 from torch.backends import cudnn
 from torchsummary import summary
-
+from sklearn.metrics import confusion_matrix
 import scipy.io
 import sys
 
@@ -224,6 +224,7 @@ class ExP():
         for e in range(self.n_epochs):
             # in_epoch = time.time()
             self.model.train()
+            best_acc_ep = 0
             for i, (img, label) in enumerate(self.dataloader):
 
                 img = Variable(img.cuda().type(self.Tensor))
@@ -276,6 +277,7 @@ class ExP():
                 num = num + 1
                 averAcc = averAcc + acc
                 if acc > bestAcc:
+                    best_acc_ep = e
                     bestAcc = acc
                     Y_true = test_label
                     Y_pred = y_pred
@@ -289,6 +291,10 @@ class ExP():
         print('The best accuracy is:', bestAcc)
         self.log_write.write('The average accuracy is: ' + str(averAcc) + "\n")
         self.log_write.write('The best accuracy is: ' + str(bestAcc) + "\n")
-
-        return bestAcc, averAcc, Y_true, Y_pred
+        self.log_write.write('Best accuracy appears in: ' + str(best_acc_ep) + " epoch\n")
+        
+        cm = confusion_matrix(Y_true.cpu(), Y_pred.cpu())
+        self.log_write.write('\nconfusion_matirx:\n')
+        self.log_write.write(str(cm))
+        return bestAcc, averAcc, cm, best_acc_ep
         # writer.close()

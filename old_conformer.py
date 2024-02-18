@@ -206,7 +206,8 @@ class ClassificationHead(nn.Sequential):
     def forward(self, x):
         x = x.contiguous().view(x.size(0), -1)
         out = self.fc(x)
-        return x, out
+        # return x, out
+        return out
 
 
 class ClassificationHead2(nn.Module):
@@ -371,9 +372,9 @@ class Conformer(nn.Sequential):
 
             PatchEmbedding(emb_size),
             TransformerEncoder(encoder_depth, emb_size),
-            # ClassificationHead(emb_size, n_classes)
-            TransformerDecoder(decoder_depth, n_classes),
-            ClassificationHead2(emb_size, n_classes)
+            ClassificationHead(emb_size, n_classes)
+            # TransformerDecoder(decoder_depth, n_classes),
+            # ClassificationHead2(emb_size, n_classes)
         )
 
 
@@ -381,7 +382,7 @@ class ExP():
     def __init__(self, nsub):
         super(ExP, self).__init__()
         self.batch_size = 72
-        self.n_epochs = 500
+        self.n_epochs = 2000
         self.c_dim = 4
         self.lr = 0.002
         self.b1 = 0.5
@@ -614,8 +615,10 @@ class ExP():
                     Y_true = test_label
                     Y_pred = y_pred
 
-
-        torch.save(self.model.module.state_dict(), './result_models/model_sub%d.pth'%self.nSub)
+        dir_name = "./results/models"
+        if not os.path.exists(dir_name):
+            os.makedirs(dir_name)
+        torch.save(self.model.module.state_dict(), './results/models/model_sub%d.pth'%self.nSub)
         averAcc = averAcc / num
         print('The average accuracy is:', averAcc)
         print('The best accuracy is:', bestAcc)

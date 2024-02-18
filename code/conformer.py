@@ -56,7 +56,7 @@ config = {
     
     # training config (adam)
     'batch_size': 72,
-    'n_epochs': 800,
+    'n_epochs': 1200,
     'lr': 0.001,
     'b1': 0.9,
     'b2': 0.999
@@ -95,23 +95,23 @@ def main():
         print('Subject %d' % (i+1))
         exp = ExP(i + 1, config)
 
-        bestAcc, averAcc, Y_true, Y_pred = exp.train()
+        bestAcc, averAcc, cm, best_acc_ep = exp.train()
         print('THE BEST ACCURACY IS ' + str(bestAcc))
         result_write.write('Subject ' + str(i + 1) + ' : ' + 'Seed is: ' + str(seed_n) + "\n")
         result_write.write('Subject ' + str(i + 1) + ' : ' + 'The best accuracy is: ' + str(bestAcc) + "\n")
         result_write.write('Subject ' + str(i + 1) + ' : ' + 'The average accuracy is: ' + str(averAcc) + "\n")
+        result_write.write('Subject ' + str(i + 1) + ' : ' + 'Best accuracy appears in: ' + str(best_acc_ep) + " epoch.\n")
 
         endtime = datetime.datetime.now()
-        result_write.write('subject %d duration: '%(i+1) + str(endtime - starttime) + "\n")
+        result_write.write('Subject ' + str(i + 1) + ' : ' + 'Duration: ' + str(endtime - starttime) + "\n")
         print('subject %d duration: '%(i+1) + str(endtime - starttime))
         best = best + bestAcc
         aver = aver + averAcc
-        if i == 0:
-            yt = Y_true
-            yp = Y_pred
-        else:
-            yt = torch.cat((yt, Y_true))
-            yp = torch.cat((yp, Y_pred))
+        
+        result_write.write('\nconfusion_matirx:\n')
+        result_write.write(str(cm))
+        result_write.write("\n\n*********************************************\n\n")
+        
 
 
     best = best / 9

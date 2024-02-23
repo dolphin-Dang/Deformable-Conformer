@@ -25,13 +25,18 @@ from ExP import ExP
 
 config = {
     'res_path': './results/sub_result.txt',
-    'sub_res_path': "./results/log_subject%d.txt",
+    'sub_res_path': "./results/sub%d/log.txt",
+    
+    # train mode
+    'mode': 'BCIC', # 'BCIC' / 'LYH' 
+    'train_prop': 0.8,
     
     # model config
     'emb_size': 40,
     'encoder_depth': 6,
     'decoder_depth': 3,
     'n_classes': 4,
+    'channel': 22,
     
     'encoder_config': {
             'num_heads': 8,
@@ -56,7 +61,7 @@ config = {
     
     # training config (adam)
     'batch_size': 72,
-    'n_epochs': 1200,
+    'n_epochs': 500,
     'lr': 0.001,
     'b1': 0.9,
     'b2': 0.999

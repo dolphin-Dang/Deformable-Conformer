@@ -55,19 +55,18 @@ import torch.autograd as autograd
 from einops import rearrange, reduce, repeat
 from einops.layers.torch import Rearrange, Reduce
 
-import matplotlib.pyplot as plt
 
 # Convolution module
 # use conv to capture local features, instead of postion embedding.
 class PatchEmbedding(nn.Module):
-    def __init__(self, emb_size=40):
+    def __init__(self, emb_size=40, channel=22):
         # self.patch_size = patch_size
         super().__init__()
         self.emb_size = emb_size
 
         self.shallownet = nn.Sequential(
             nn.Conv2d(1, 40, (1, 25), (1, 1)), # shape: 1000 -> 976 (1000-25+1)
-            nn.Conv2d(40, 40, (22, 1), (1, 1)),
+            nn.Conv2d(40, 40, (channel, 1), (1, 1)),
             nn.BatchNorm2d(40),
             nn.ELU(),
             nn.AvgPool2d((1, 75), (1, 15)),  # shape: 976 -> 61 ((976-75)/15+1)
@@ -470,6 +469,7 @@ class TransformerDecoderBlock(nn.Module):
         feature: (bs, n, emb)
         query: (bs, n_classes, emb)
         '''
+        
         query = self.p1(query)
         query = self.ln(query)
         att = self.deform_cross_att(feature, query)
@@ -484,17 +484,16 @@ class TransformerDecoder(nn.Module):
     def __init__(self, depth, n_classes=4, emb_size=40, config=None):
         super().__init__()
         self.depth = depth
-        if config != None:
-            self.decoder_blocks = \
-                [TransformerDecoderBlock(emb_size, **config["decoder_config"]).cuda() for _ in range(depth)]
-        else:
-            self.decoder_blocks = [TransformerDecoderBlock(emb_size).cuda() for _ in range(depth)]
+        self.decoder_blocks = nn.ModuleList()
+        for i in range(depth):
+            self.decoder_blocks.append(TransformerDecoderBlock(emb_size, **config["decoder_config"]))
+
         # try linearly project feature to object queries
         # hard code 61 here: a potential bug
         # self.obj_query_proj = nn.Linear(61, n_classes)
         
         # randomly initialize query
-        self.obj_query = nn.Parameter(torch.randn(n_classes, emb_size)).cuda()
+        self.obj_query = nn.Parameter(torch.randn(n_classes, emb_size))
 
         '''
         note: two ways of query initialization hardly influence performance.
@@ -526,15 +525,18 @@ class Conformer(nn.Sequential):
             depth: num of transformer encoder blocks
             n_class: output num of last fully-connected layer
         '''
+        channel = 22
         if config != None:
             emb_size = config["emb_size"]
             encoder_depth = config["encoder_depth"]
             decoder_depth = config["decoder_depth"]
             n_classes = config["n_classes"]
+            channel = config["channel"]
+            
         print(f"Emb_size: {emb_size}")
         super().__init__(
 
-            PatchEmbedding(emb_size),
+            PatchEmbedding(emb_size, channel),
             # Embedding(),
             TransformerEncoder(encoder_depth, emb_size, config),
             # DeformableTransformerEncoder(encoder_depth, emb_size, config),

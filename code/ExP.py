@@ -13,6 +13,9 @@ from models import Conformer
 from torch.backends import cudnn
 from torchsummary import summary
 from sklearn.metrics import confusion_matrix
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+
 import scipy.io
 import sys
 
@@ -29,11 +32,13 @@ class ExP():
         self.b1 = 0.5
         self.b2 = 0.999
         self.nSub = nsub
-
+        self.channel = 22
+        self.mode = "BCIC"
+        
         self.start_epoch = 0
         # self.root = '/Data/strict_TE/'
         self.root = './data/rawMat/'
-        res_path = "./results/log_subject%d.txt" % self.nSub
+        self.res_path = "./results/sub%d/log.txt" % self.nSub
         
         self.config = None
         self.config = config
@@ -43,13 +48,15 @@ class ExP():
             self.lr = config["lr"]
             self.b1 = config["b1"]
             self.b2 = config["b2"]
-            res_path = config["sub_res_path"] % self.nSub
+            self.res_path = config["sub_res_path"] % self.nSub
+            self.channel = config["channel"]
+            self.mode = config["mode"]
         
-        dir_name = os.path.dirname(res_path)
+        dir_name = os.path.dirname(self.res_path)
         if not os.path.exists(dir_name):
             os.makedirs(dir_name)
-        result_write = open(res_path, "w")
-        self.log_write = open(res_path, "w")
+        result_write = open(self.res_path, "w")
+        self.log_write = open(self.res_path, "w")
 
         self.Tensor = torch.cuda.FloatTensor
         self.LongTensor = torch.cuda.LongTensor
@@ -59,8 +66,14 @@ class ExP():
         self.criterion_cls = torch.nn.CrossEntropyLoss().cuda()
 
         self.model = Conformer(config=self.config).cuda()
-        self.model = nn.DataParallel(self.model, device_ids=[i for i in range(len(gpus))])
-        self.model = self.model.cuda()
+        # for name, param in self.model.named_parameters():
+        #     print(f'Parameter name: {name}')
+        #     # print(f'Parameter value: {param}')
+        #     print(f'Parameter device: {param.device}')
+        #     print('-----------------------------')
+
+        
+        
         summary(self.model, (1, 22, 1000))
         
 #         with open('summary.txt', 'w') as f:
@@ -86,7 +99,7 @@ class ExP():
             # print(label.shape) # (288, 1)
             # print(tmp_label.shape) # (72,)
 
-            tmp_aug_data = np.zeros((int(self.batch_size / 4), 1, 22, 1000))
+            tmp_aug_data = np.zeros((int(self.batch_size / 4), 1, self.channel, 1000))
             # print(f"tmp_aug_data.shape = {tmp_aug_data.shape}")
             # drf: get 8 slices of 8 random data from tmp_data, from the same time period idx
             for ri in range(int(self.batch_size / 4)):
@@ -125,8 +138,59 @@ class ExP():
 
         return testData, testLabel
     
-    def get_source_data(self):
+    def get_lyh_data(self):
+        print("Getting LYH data set.")
+        
+        # get all the data first
+        cur_path = os.getcwd()
+        print(cur_path)
+        left_raw = np.load('./data/lyh_data/left_e.npy') # label: 0
+        right_raw = np.load('./data/lyh_data/right_e.npy') # label: 1
+        leg_raw = np.load('./data/lyh_data/left_e.npy') # label: 2
+        nothing_raw = np.load('./data/lyh_data/nothing.npy') # label: 3
+        eeg_raw = [left_raw, right_raw, leg_raw, nothing_raw]
+        eeg_raw = [t[:14,:] for t in eeg_raw]
+        
+        X_train = []
+        X_test = []
+        y_train = []
+        y_test = []
+        
+        for i in range(4):
+            # print(f"Data shape: {eeg_raw[i].shape}")
+            split_data = np.split(eeg_raw[i], 300, axis=1)
+            X_raw = np.stack(split_data, axis=0) # (14, 30_0000) => (300, 14, 1000)
+            X_raw = np.expand_dims(X_raw, axis=1) # (300, 1, 14, 1000)
+            y_raw = np.array([i for j in range(300)]) # (300,) value = label
+            train_prop = int(self.config["train_prop"]*len(X_raw))
+            X_train.append(X_raw[:train_prop,:,:,:])
+            X_test.append(X_raw[train_prop:,:,:,:])
+            y_train.append(y_raw[:train_prop])
+            y_test.append(y_raw[train_prop:])
 
+        X_train = np.concatenate(X_train)
+        y_train = np.concatenate(y_train)
+        X_test = np.concatenate(X_test)
+        y_test = np.concatenate(y_test)
+
+        print(X_train.shape)
+        print(y_train.shape)
+        print(X_test.shape)
+        print(y_test.shape)
+    
+        shuffle_num = np.random.permutation(len(X_train))
+        X_train = X_train[shuffle_num, :, :, :]
+        y_train = y_train[shuffle_num]
+        
+        self.train_data = X_train
+        self.train_label = y_train
+        self.allData = np.concatenate([X_train, X_test])
+        self.allLabel = np.concatenate([y_train, y_test])
+            
+        return X_train, y_train, X_test, y_test
+    
+    def get_source_data(self):
+        print("Getting BCIC data set.")
         # train data
         # self.total_data = scipy.io.loadmat(self.root + 'A0%dT.mat' % self.nSub)
         # self.train_data = self.total_data['data']
@@ -188,7 +252,16 @@ class ExP():
 
     def train(self):
 
-        img, label, test_data, test_label = self.get_source_data()
+        # some trackable history
+        train_acc_list = []
+        test_acc_list = []
+        train_loss_list = []
+        test_loss_list = []
+        
+        if self.mode == 'BCIC':
+            img, label, test_data, test_label = self.get_source_data()
+        elif self.mode == "LYH":
+            img, label, test_data, test_label = self.get_lyh_data()
 
         img = torch.from_numpy(img)
         label = torch.from_numpy(label)
@@ -220,27 +293,25 @@ class ExP():
         # Train the cnn model
         total_step = len(self.dataloader)
         curr_lr = self.lr
-
+        best_acc_ep = 0
+        
         for e in range(self.n_epochs):
             # in_epoch = time.time()
             self.model.train()
-            best_acc_ep = 0
+            
             for i, (img, label) in enumerate(self.dataloader):
 
                 img = Variable(img.cuda().type(self.Tensor))
                 label = Variable(label.cuda().type(self.LongTensor))
-
-                # data augmentation
-                aug_data, aug_label = self.interaug(self.allData, self.allLabel)
-                # print(aug_data.shape)
-                # print(aug_label.shape)
-                # print(self.allData.shape)
-                # print(self.allLabel.shape)
                 
+                # print(img.shape)
                 # print(label.shape)
-                # print(aug_label.shape)
-                img = torch.cat((img, aug_data))
-                label = torch.cat((label, aug_label))
+                
+                if self.mode == 'BCIC':
+                    # data augmentation
+                    aug_data, aug_label = self.interaug(self.allData, self.allLabel)
+                    img = torch.cat((img, aug_data))
+                    label = torch.cat((label, aug_label))
                 
                 outputs = self.model(img)
                 # tok, outputs = self.model(img)
@@ -273,6 +344,11 @@ class ExP():
                       '  Train accuracy %.6f' % train_acc,
                       '  Test accuracy is %.6f' % acc)
 
+                train_acc_list.append(train_acc)
+                test_acc_list.append(acc)
+                train_loss_list.append(loss.detach().cpu().numpy())
+                test_loss_list.append(loss_test.detach().cpu().numpy())
+                    
                 self.log_write.write(str(e) + "    " + str(acc) + "\n")
                 num = num + 1
                 averAcc = averAcc + acc
@@ -281,11 +357,8 @@ class ExP():
                     bestAcc = acc
                     Y_true = test_label
                     Y_pred = y_pred
-
-        dir_name = "./results/models"
-        if not os.path.exists(dir_name):
-            os.makedirs(dir_name)
-        torch.save(self.model.module.state_dict(), './results/models/model_sub%d.pth'%self.nSub)
+        
+        torch.save(self.model.state_dict(), './results/sub%d/model.pth'%self.nSub)
         averAcc = averAcc / num
         print('The average accuracy is:', averAcc)
         print('The best accuracy is:', bestAcc)
@@ -294,7 +367,29 @@ class ExP():
         self.log_write.write('Best accuracy appears in: ' + str(best_acc_ep) + " epoch\n")
         
         cm = confusion_matrix(Y_true.cpu(), Y_pred.cpu())
-        self.log_write.write('\nconfusion_matirx:\n')
+        self.log_write.write('\nconfusion_matrix:\n')
         self.log_write.write(str(cm))
+        
+        # draw the plot
+        if train_acc_list:
+            plt.figure()
+            x = [i for i in range(1, len(train_acc_list) + 1)]
+            plt.plot(x, train_acc_list, label="acc_train")
+            plt.plot(x, test_acc_list, label="acc_test")
+            plt.legend()
+            plt.xlabel("epoch")
+            plt.ylabel("accuracy")
+            plt.savefig(os.path.join(os.path.dirname(self.res_path), "acc.png"))
+
+
+            plt.figure()
+            x = [i for i in range(1, len(train_loss_list) + 1)]
+            plt.plot(x, train_loss_list, label="loss_train")
+            plt.plot(x, test_loss_list, label="loss_test")
+            plt.legend()
+            plt.xlabel("epoch")
+            plt.ylabel("loss")
+            plt.savefig(os.path.join(os.path.dirname(self.res_path), "loss.png"))
+
         return bestAcc, averAcc, cm, best_acc_ep
         # writer.close()

@@ -3,6 +3,10 @@ Modified from EEG-Conformer. Add deformable transformer decoder layers with defo
 
 Achieve SOTA on BCIC-4-2a dataset: avg accuracy 80.71%.
 
+![](./DeformableConformer)
+![](./DeformableAttention)
+
+
 # EEG-Conformer
 
 ### EEG Conformer: Convolutional Transformer for EEG Decoding and Visualization [[Paper](https://ieeexplore.ieee.org/document/9991178)]

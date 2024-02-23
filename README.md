@@ -1,5 +1,5 @@
 # Deformable Conformer
-Modified from EEG-Conformer. Add deformable transformer decoder layers with deformable cross attention used in it.
+Modified from EEG-Conformer. Add deformable transformer decoder layers with deformable cross attention block.
 
 Achieve SOTA on BCIC-4-2a dataset: avg accuracy 80.71%.
 

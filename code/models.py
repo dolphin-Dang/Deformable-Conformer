@@ -387,34 +387,35 @@ class DeformableCrossAttention(nn.Module):
     def forward(self, input, query):
         # print("*** DCA forward ***")
         bs, n, e = input.shape
-        ref_pts_idx = self.fc_pts(query) # (bs, n_classes, num_of_points) point offset
-        ref_pts_idx = torch.floor(
-            torch.sigmoid(ref_pts_idx) * n
-        ).long() # int [0, n-1]
-
-        ref_weight = self.fc_w(query) # (bs, n_classes, num_of_points) point weight
-        ref_weight = F.softmax(ref_weight, -1) # float [0,1]
-
-        indices_tuple = ref_pts_idx.split(1, dim=1)
-        indices_lists = [t.squeeze() for t in indices_tuple] # list of idx tensor (bs, num_of_points)
-
-        weight_lists = ref_weight.split(1, dim=1)
-        weight_lists = [t.squeeze() for t in weight_lists] # list of tensor
+        query_list = query.split(1, dim=1) # list of (bs, 1, emb)
+        indices_list = []
+        for t in query_list:
+            idx = self.fc_pts(t).squeeze() # (bs, num_of_pts)
+            idx = torch.floor(
+                torch.sigmoid(idx) * n
+            ).long() # int [0, n-1]
+            indices_list.append(idx)
+            
+        weight_list = []
+        for t in query_list:
+            ref_w = self.fc_w(t).squeeze() # (bs, num_of_points)
+            ref_w = F.softmax(ref_w, -1) # float [0,1]
+            weight_list.append(ref_w)
 
         # list of (bs, num_of_points, e) tensors with weight multiplied
         deform_tensors = []
-        for i in range(len(indices_lists)):
-            index = indices_lists[i].unsqueeze(-1).repeat(1,1,e)
+        for i in range(len(indices_list)):
+            index = indices_list[i].unsqueeze(-1).repeat(1,1,e)
             tmp_t = input.gather(1, index) # (bs, num_of_points, e)
-            weights_tensor = weight_lists[i].unsqueeze(-1).repeat(1,1,e) # (bs, num_of_points, e)
-            # print(weight_lists[i].shape)
+            weights_tensor = weight_list[i].unsqueeze(-1).repeat(1,1,e) # (bs, num_of_points, e)
+            # print(weight_list[i].shape)
             # print(tmp_t.shape)
             # print(weights_tensor.shape)
             deform_tensors.append(tmp_t * weights_tensor)
 
         att_ans_list = []
-        for t in deform_tensors:
-            att = self.att(x=t, mask=None, query=query) # (bs, num_of_points, e)
+        for i, t in enumerate(deform_tensors):
+            att = self.att(x=t, mask=None, query=query_list[i]) # (bs, num_of_points, e)
             att = torch.sum(att, dim=1) # (bs, e)
             att_ans_list.append(att)
         ans = torch.stack(att_ans_list, dim=1)
@@ -422,10 +423,10 @@ class DeformableCrossAttention(nn.Module):
 
         # # for long seq: add first, one attention
         # deform_tensors = []
-        # for i in range(len(indices_lists)):
-        #     index = indices_lists[i].unsqueeze(-1).repeat(1,1,e)
+        # for i in range(len(indices_list)):
+        #     index = indices_list[i].unsqueeze(-1).repeat(1,1,e)
         #     tmp_t = input.gather(1, index) # (bs, num_of_points, e)
-        #     weights_tensor = weight_lists[i].unsqueeze(-1).repeat(1,1,e) # (bs, num_of_points, e)
+        #     weights_tensor = weight_list[i].unsqueeze(-1).repeat(1,1,e) # (bs, num_of_points, e)
         #     weighted_tensor = tmp_t * weights_tensor
         #     deform_tensors.append(weighted_tensor.sum(dim=1))
         # deform_tensor = torch.stack(deform_tensors, dim=1)

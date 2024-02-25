@@ -66,12 +66,23 @@ class ExP():
         self.criterion_cls = torch.nn.CrossEntropyLoss().cuda()
 
         self.model = Conformer(config=self.config).cuda()
-        # for name, param in self.model.named_parameters():
-        #     print(f'Parameter name: {name}')
-        #     # print(f'Parameter value: {param}')
-        #     print(f'Parameter device: {param.device}')
-        #     print('-----------------------------')
 
+        # two-stage training
+        if config != None and config["pretrained"] == True:
+            print(f"Loading pre-trained parameters: {config['pretrained_pth']}.")
+            model_dict = self.model.state_dict()
+            pretrained_dict = torch.load(os.path.join(config["pretrained_pth"], 'model_sub%d.pth'%self.nSub))
+            pretrained_dict = {k:v for k,v in pretrained_dict.items() if k in model_dict}
+            # print(pretrained_dict.keys())
+            model_dict.update(pretrained_dict)
+            self.model.load_state_dict(model_dict)
+            # print(model_dict.keys())
+            
+            # freeze pretrained parameters
+            for param_name, param in self.model.named_parameters():
+                if param_name in pretrained_dict:
+                    param.requires_grad = False
+        
         
         
         summary(self.model, (1, 22, 1000))

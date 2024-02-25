@@ -30,11 +30,13 @@ config = {
     # train mode
     'mode': 'BCIC', # 'BCIC' / 'LYH' 
     'train_prop': 0.8,
+    'pretrained': False,
+    'pretrained_pth': './results_old_2000ep/models',
     
     # model config
     'emb_size': 40,
     'encoder_depth': 6,
-    'decoder_depth': 3,
+    'decoder_depth': 2,
     'n_classes': 4,
     'channel': 22,
     
@@ -51,7 +53,7 @@ config = {
             'drop_p': 0.5,
             'forward_expansion': 4,
             'forward_drop_p': 0.5,
-            'num_of_points': 12
+            'num_of_points': 20
         },
     
     'hidden_size_1': 256,
@@ -61,7 +63,7 @@ config = {
     
     # training config (adam)
     'batch_size': 72,
-    'n_epochs': 500,
+    'n_epochs': 1000,
     'lr': 0.001,
     'b1': 0.9,
     'b2': 0.999

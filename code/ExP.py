@@ -79,9 +79,9 @@ class ExP():
             # print(model_dict.keys())
             
             # freeze pretrained parameters
-            for param_name, param in self.model.named_parameters():
-                if param_name in pretrained_dict:
-                    param.requires_grad = False
+            # for param_name, param in self.model.named_parameters():
+            #     if param_name in pretrained_dict:
+            #         param.requires_grad = False
         
         
         

@@ -30,7 +30,7 @@ config = {
     # train mode
     'mode': 'BCIC', # 'BCIC' / 'LYH' 
     'train_prop': 0.8,
-    'pretrained': False,
+    'pretrained': True,
     'pretrained_pth': './results_old_2000ep/models',
     
     # model config

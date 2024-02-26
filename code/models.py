@@ -250,6 +250,21 @@ class TransformerEncoder(nn.Sequential):
         else:
             super().__init__(*[TransformerEncoderBlock(emb_size) for _ in range(depth)])
 
+            
+class Projection(nn.Module):
+    def __init__(self, emb_size=40, proj_size=40, config=None):
+        super().__init__()
+        if config != None:
+            emb_size = config["emb_size"]
+            proj_size = config["proj_size"]
+        self.proj = nn.Conv2d(emb_size, proj_size, (1, 1), stride=(1, 1))
+        
+    def forward(self, input):
+        input = input.permute(0,2,1).unsqueeze(-1)
+        ret = self.proj(input)
+        ret = ret.squeeze().permute(0,2,1)
+        return ret
+        
 
 class ClassificationHead(nn.Sequential):
     def __init__(self, emb_size=40, n_classes=4, config=None):
@@ -527,14 +542,16 @@ class Conformer(nn.Sequential):
             n_class: output num of last fully-connected layer
         '''
         channel = 22
+        proj_size = 40
         if config != None:
             emb_size = config["emb_size"]
             encoder_depth = config["encoder_depth"]
             decoder_depth = config["decoder_depth"]
             n_classes = config["n_classes"]
             channel = config["channel"]
+            proj_size = config["proj_size"]
             
-        print(f"Emb_size: {emb_size}")
+        # print(f"Emb_size: {emb_size}")
         super().__init__(
 
             PatchEmbedding(emb_size, channel),
@@ -542,6 +559,7 @@ class Conformer(nn.Sequential):
             TransformerEncoder(encoder_depth, emb_size, config),
             # DeformableTransformerEncoder(encoder_depth, emb_size, config),
             # ClassificationHead(emb_size, n_classes)
-            TransformerDecoder(decoder_depth, n_classes, emb_size, config),
-            ClassificationHead2(emb_size, n_classes)
+            # Projection(emb_size, proj_size, config),
+            TransformerDecoder(decoder_depth, n_classes, proj_size, config),
+            ClassificationHead2(proj_size, n_classes)
         )

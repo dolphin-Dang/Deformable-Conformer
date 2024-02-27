@@ -30,13 +30,14 @@ config = {
     # train mode
     'mode': 'BCIC', # 'BCIC' / 'LYH' 
     'train_prop': 0.8,
-    'pretrained': True,
-    'pretrained_pth': './results_old_2000ep/models',
+    'pretrained': False,
+    'pretrained_pth': './results_deform_8140',
+    'use_center_loss': True,
     
     # model config
     'emb_size': 40,
     'proj_size': 40,
-    'encoder_depth': 6,
+    'encoder_depth': 4,
     'decoder_depth': 2,
     'n_classes': 4,
     'channel': 22,
@@ -65,9 +66,10 @@ config = {
     # training config (adam)
     'batch_size': 72,
     'n_epochs': 2000,
-    'lr': 0.001,
+    'lr': 0.002,
     'b1': 0.9,
-    'b2': 0.999
+    'b2': 0.999,
+    'Lambda': 0.0003
 }
 
 

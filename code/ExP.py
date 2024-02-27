@@ -9,11 +9,13 @@ import numpy as np
 import torch
 from torch import nn
 from torch.autograd import Variable
-from models import Conformer
+from models import DeformableConformer
 from torch.backends import cudnn
 from torchsummary import summary
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import train_test_split
+from CenterLoss import CenterLoss
+
 import matplotlib.pyplot as plt
 
 import scipy.io
@@ -34,6 +36,9 @@ class ExP():
         self.nSub = nsub
         self.channel = 22
         self.mode = "BCIC"
+        self.n_classes = 4
+        self.Lambda = 0.0005
+        self.use_center_loss = False
         
         self.start_epoch = 0
         # self.root = '/Data/strict_TE/'
@@ -51,6 +56,9 @@ class ExP():
             self.res_path = config["sub_res_path"] % self.nSub
             self.channel = config["channel"]
             self.mode = config["mode"]
+            self.n_classes = config["n_classes"]
+            self.Lambda = config["Lambda"]
+            self.use_center_loss = config["use_center_loss"]
         
         dir_name = os.path.dirname(self.res_path)
         if not os.path.exists(dir_name):
@@ -64,16 +72,18 @@ class ExP():
         self.criterion_l1 = torch.nn.L1Loss().cuda()
         self.criterion_l2 = torch.nn.MSELoss().cuda()
         self.criterion_cls = torch.nn.CrossEntropyLoss().cuda()
-
-        self.model = Conformer(config=self.config).cuda()
+        # self.center_loss = CenterLoss(num_classes=self.n_classes, feat_dim=self.n_classes*config["proj_size"], use_gpu=True)
+        self.center_loss = CenterLoss(num_classes=self.n_classes, feat_dim=61*40, use_gpu=True)
+        
+        self.model = DeformableConformer(config=self.config).cuda()
 
         # two-stage training
         if config != None and config["pretrained"] == True:
             print(f"Loading pre-trained parameters: {config['pretrained_pth']}.")
             model_dict = self.model.state_dict()
-            pretrained_dict = torch.load(os.path.join(config["pretrained_pth"], 'model_sub%d.pth'%self.nSub))
+            pretrained_dict = torch.load(os.path.join(config["pretrained_pth"], 'sub%d/model.pth'%self.nSub))
             pretrained_dict = {k:v for k,v in pretrained_dict.items() if k in model_dict}
-            # print(pretrained_dict.keys())
+            print(pretrained_dict.keys())
             model_dict.update(pretrained_dict)
             self.model.load_state_dict(model_dict)
             # print(model_dict.keys())
@@ -290,8 +300,12 @@ class ExP():
         self.test_dataloader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=self.batch_size, shuffle=True)
 
         # Optimizers
+        # if self.use_center_loss:
+        #     self.optimizer_feat = torch.optim.Adam(list(self.model.patch_embedding.parameters())+list(self.model.encoder.parameters()), lr=self.lr, betas=(self.b1, self.b2))
+        #     self.optimizer_cls = torch.optim.Adam(list(self.model.decoder.parameters())+list(self.model.classifier.parameters()), lr=self.lr, betas=(self.b1, self.b2))
+        # else:
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, betas=(self.b1, self.b2))
-
+            
         test_data = Variable(test_data.type(self.Tensor))
         test_label = Variable(test_label.type(self.LongTensor))
 
@@ -305,6 +319,13 @@ class ExP():
         total_step = len(self.dataloader)
         curr_lr = self.lr
         best_acc_ep = 0
+        
+        def lambda_decend(Lambda, total_ep, ep):
+            if ep > total_ep / 2:
+                return 0
+            else:
+                return (1 - ep*2/total_ep) * Lambda
+        
         
         for e in range(self.n_epochs):
             # in_epoch = time.time()
@@ -324,10 +345,16 @@ class ExP():
                     img = torch.cat((img, aug_data))
                     label = torch.cat((label, aug_label))
                 
-                outputs = self.model(img)
-                # tok, outputs = self.model(img)
-
+                # outputs = self.model(img)
+                tok, outputs = self.model(img)
+                
                 loss = self.criterion_cls(outputs, label) 
+                if self.use_center_loss:
+                    center_loss = self.center_loss(tok.reshape(label.size(0), -1), label) * self.Lambda
+                    loss = loss + center_loss
+
+                    # for param in self.model.parameters():
+                    #     print(param.grad)
 
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -339,11 +366,14 @@ class ExP():
             # test process
             if (e + 1) % 1 == 0:
                 self.model.eval()
-                # Tok, Cls = self.model(test_data)
-                Cls = self.model(test_data)
-
+                Tok, Cls = self.model(test_data)
+                # Cls = self.model(test_data)
 
                 loss_test = self.criterion_cls(Cls, test_label)
+                if self.use_center_loss:
+                    center_loss = self.center_loss(Tok.reshape(test_label.size(0), -1), test_label)
+                    loss_test = loss_test + self.Lambda * center_loss
+                
                 y_pred = torch.max(Cls, 1)[1]
                 acc = float((y_pred == test_label).cpu().numpy().astype(int).sum()) / float(test_label.size(0))
                 train_pred = torch.max(outputs, 1)[1]

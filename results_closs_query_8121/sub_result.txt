@@ -1,0 +1,169 @@
+config: 
+{
+    "res_path": "./results/sub_result.txt",
+    "sub_res_path": "./results/sub%d/log.txt",
+    "mode": "BCIC",
+    "train_prop": 0.8,
+    "pretrained": false,
+    "pretrained_pth": "./results_closs_8125",
+    "use_center_loss": true,
+    "emb_size": 40,
+    "proj_size": 40,
+    "encoder_depth": 6,
+    "decoder_depth": 2,
+    "n_classes": 4,
+    "channel": 22,
+    "encoder_config": {
+        "num_heads": 8,
+        "drop_p": 0.5,
+        "forward_expansion": 4,
+        "forward_drop_p": 0.5,
+        "num_of_points": 16
+    },
+    "decoder_config": {
+        "num_heads": 8,
+        "drop_p": 0.5,
+        "forward_expansion": 4,
+        "forward_drop_p": 0.5,
+        "num_of_points": 24
+    },
+    "hidden_size_1": 256,
+    "hidden_size_2": 64,
+    "drop_p_1": 0.5,
+    "drop_p_2": 0.3,
+    "batch_size": 72,
+    "n_epochs": 2000,
+    "lr": 0.001,
+    "b1": 0.9,
+    "b2": 0.999,
+    "Lambda": 0.0003
+}
+
+Subject 1 : Seed is: 1577
+Subject 1 : The best accuracy is: 0.8923611111111112
+Subject 1 : The average accuracy is: 0.8011215277777778
+Subject 1 : Best accuracy appears in: 1276 epoch.
+Subject 1 : Duration: 0:12:36.932829
+
+confusion_matirx:
+[[66  4  1  1]
+ [ 2 68  2  0]
+ [ 0  1 67  4]
+ [ 1  0 15 56]]
+
+*********************************************
+
+Subject 2 : Seed is: 1350
+Subject 2 : The best accuracy is: 0.5868055555555556
+Subject 2 : The average accuracy is: 0.4705815972222226
+Subject 2 : Best accuracy appears in: 1659 epoch.
+Subject 2 : Duration: 0:12:39.463912
+
+confusion_matirx:
+[[36 12 10 14]
+ [25 30 11  6]
+ [ 4  0 64  4]
+ [15  9  9 39]]
+
+*********************************************
+
+Subject 3 : Seed is: 1032
+Subject 3 : The best accuracy is: 0.9409722222222222
+Subject 3 : The average accuracy is: 0.8714357638888874
+Subject 3 : Best accuracy appears in: 771 epoch.
+Subject 3 : Duration: 0:13:16.433672
+
+confusion_matirx:
+[[69  1  1  1]
+ [ 0 72  0  0]
+ [ 0  1 67  4]
+ [ 2  0  7 63]]
+
+*********************************************
+
+Subject 4 : Seed is: 1957
+Subject 4 : The best accuracy is: 0.7708333333333334
+Subject 4 : The average accuracy is: 0.6566163194444441
+Subject 4 : Best accuracy appears in: 1834 epoch.
+Subject 4 : Duration: 0:13:10.366082
+
+confusion_matirx:
+[[60 11  1  0]
+ [11 58  1  2]
+ [ 0  3 44 25]
+ [ 2  5  5 60]]
+
+*********************************************
+
+Subject 5 : Seed is: 1596
+Subject 5 : The best accuracy is: 0.71875
+Subject 5 : The average accuracy is: 0.5860937499999993
+Subject 5 : Best accuracy appears in: 1872 epoch.
+Subject 5 : Duration: 0:13:00.623552
+
+confusion_matirx:
+[[51  4  6 11]
+ [ 4 54  7  7]
+ [ 4  6 51 11]
+ [10  3  8 51]]
+
+*********************************************
+
+Subject 6 : Seed is: 100
+Subject 6 : The best accuracy is: 0.7118055555555556
+Subject 6 : The average accuracy is: 0.6273385416666664
+Subject 6 : Best accuracy appears in: 1910 epoch.
+Subject 6 : Duration: 0:13:37.766381
+
+confusion_matirx:
+[[51  9  4  8]
+ [10 47  7  8]
+ [ 5  4 55  8]
+ [12  5  3 52]]
+
+*********************************************
+
+Subject 7 : Seed is: 280
+Subject 7 : The best accuracy is: 0.9409722222222222
+Subject 7 : The average accuracy is: 0.8386562500000004
+Subject 7 : Best accuracy appears in: 1402 epoch.
+Subject 7 : Duration: 0:14:00.590119
+
+confusion_matirx:
+[[65  2  0  5]
+ [ 3 67  0  2]
+ [ 0  0 68  4]
+ [ 0  0  1 71]]
+
+*********************************************
+
+Subject 8 : Seed is: 85
+Subject 8 : The best accuracy is: 0.8784722222222222
+Subject 8 : The average accuracy is: 0.8063333333333322
+Subject 8 : Best accuracy appears in: 537 epoch.
+Subject 8 : Duration: 0:13:35.359374
+
+confusion_matirx:
+[[65  0  6  1]
+ [ 0 70  1  1]
+ [ 0  3 66  3]
+ [ 4 10  6 52]]
+
+*********************************************
+
+Subject 9 : Seed is: 534
+Subject 9 : The best accuracy is: 0.8680555555555556
+Subject 9 : The average accuracy is: 0.780383680555556
+Subject 9 : Best accuracy appears in: 1865 epoch.
+Subject 9 : Duration: 0:14:05.580051
+
+confusion_matirx:
+[[63  5  4  0]
+ [ 1 52 17  2]
+ [ 0  3 67  2]
+ [ 0  2  2 68]]
+
+*********************************************
+
+**The average Best accuracy is: 0.8121141975308642
+The average Aver accuracy is: 0.7153956404320986

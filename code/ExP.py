@@ -301,8 +301,14 @@ class ExP():
 
         # Optimizers
         # if self.use_center_loss:
-        #     self.optimizer_feat = torch.optim.Adam(list(self.model.patch_embedding.parameters())+list(self.model.encoder.parameters()), lr=self.lr, betas=(self.b1, self.b2))
-        #     self.optimizer_cls = torch.optim.Adam(list(self.model.decoder.parameters())+list(self.model.classifier.parameters()), lr=self.lr, betas=(self.b1, self.b2))
+        #     self.optimizer_feat = torch.optim.Adam(
+        #         list(self.model.patch_embedding.parameters())+
+        #             list(self.model.encoder.parameters())+
+        #                 list(self.model.decoder.parameters()), 
+        #         lr=self.lr, betas=(self.b1, self.b2))
+        #     self.optimizer_cls = torch.optim.Adam(
+        #         list(self.model.classifier.parameters()), 
+        #         lr=self.lr, betas=(self.b1, self.b2))
         # else:
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, betas=(self.b1, self.b2))
             
@@ -360,7 +366,20 @@ class ExP():
                 loss.backward()
                 self.optimizer.step()
 
-
+#                 loss = self.criterion_cls(outputs, label)
+#                 if self.use_center_loss:
+#                     center_loss = self.center_loss(tok.reshape(label.size(0), -1), label) * self.Lambda
+#                     self.optimizer_cls.zero_grad()
+#                     loss.backward(retain_graph=True)
+#                     self.optimizer_feat.zero_grad()
+#                     center_loss.backward()
+                    
+#                     self.optimizer_cls.step()
+#                     self.optimizer_feat.step()
+#                 else:
+#                     self.optimizer.zero_grad()
+#                     center_loss.backward()
+#                     self.optimizer.step()
             # out_epoch = time.time()
 
             # test process

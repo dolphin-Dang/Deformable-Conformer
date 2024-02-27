@@ -31,7 +31,7 @@ config = {
     'mode': 'BCIC', # 'BCIC' / 'LYH' 
     'train_prop': 0.8,
     'pretrained': False,
-    'pretrained_pth': './results_deform_8140',
+    'pretrained_pth': './results_closs_query_8125',
     'use_center_loss': True,
     
     # model config

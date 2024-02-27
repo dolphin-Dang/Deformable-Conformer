@@ -4,10 +4,14 @@ config:
     "sub_res_path": "./results/sub%d/log.txt",
     "mode": "LYH",
     "train_prop": 0.8,
+    "pretrained": false,
+    "pretrained_pth": "./results_closs_feat_8125",
+    "use_center_loss": false,
     "emb_size": 40,
-    "encoder_depth": 6,
-    "decoder_depth": 3,
-    "n_classes": 4,
+    "proj_size": 40,
+    "encoder_depth": 4,
+    "decoder_depth": 2,
+    "n_classes": 3,
     "channel": 14,
     "encoder_config": {
         "num_heads": 8,
@@ -21,30 +25,27 @@ config:
         "drop_p": 0.5,
         "forward_expansion": 4,
         "forward_drop_p": 0.5,
-        "num_of_points": 12
+        "num_of_points": 24
     },
     "hidden_size_1": 256,
     "hidden_size_2": 64,
     "drop_p_1": 0.5,
     "drop_p_2": 0.3,
-    "batch_size": 60,
-    "n_epochs": 100,
-    "lr": 0.001,
+    "batch_size": 72,
+    "n_epochs": 200,
+    "lr": 0.0002,
     "b1": 0.9,
-    "b2": 0.999
+    "b2": 0.999,
+    "Lambda": 0.0003
 }
 
-Subject 1 : Seed is: 551
-Subject 1 : The best accuracy is: 0.6875
-Subject 1 : The average accuracy is: 0.5317500000000002
-Subject 1 : Best accuracy appears in: 94 epoch.
-Subject 1 : Duration: 0:01:54.530131
+Seed is: 337
+The best accuracy is: 0.8833333333333333
+The average accuracy is: 0.758133333333333
+Best accuracy appears in: 116 epoch.
+Duration: 0:03:15.373267
 
 confusion_matirx:
-[[ 0  0 46 14]
- [ 0 60  0  0]
- [ 0  0 46 14]
- [ 0  0  1 59]]
-
-*********************************************
-
+[[90  7  3]
+ [ 9 79 12]
+ [ 0  4 96]]

@@ -528,41 +528,35 @@ class TransformerDecoder(nn.Module):
             batch_query = self.decoder_blocks[i](input, batch_query)
         return batch_query
     
-# old Deformable Conformer, achieve 81.40% accuracy on BCIC-Ⅳ-2a dataset
-# class DeformableConformer(nn.Sequential):
-#     def __init__(self, emb_size=40, 
-#             encoder_depth=6, 
-#             decoder_depth=3,
-#             n_classes=4, 
-#             config=None):
-#         '''
-#         input:
-#             emb_size: k the num of temporal conv filters
-#             depth: num of transformer encoder blocks
-#             n_class: output num of last fully-connected layer
-#         '''
-#         channel = 22
-#         proj_size = 40
-#         if config != None:
-#             emb_size = config["emb_size"]
-#             encoder_depth = config["encoder_depth"]
-#             decoder_depth = config["decoder_depth"]
-#             n_classes = config["n_classes"]
-#             channel = config["channel"]
-#             proj_size = config["proj_size"]
+# old Conformer
+class Conformer(nn.Sequential):
+    def __init__(self, emb_size=40, 
+            encoder_depth=6, 
+            decoder_depth=3,
+            n_classes=4, 
+            config=None):
+        '''
+        input:
+            emb_size: k the num of temporal conv filters
+            depth: num of transformer encoder blocks
+            n_class: output num of last fully-connected layer
+        '''
+        channel = 22
+        proj_size = 40
+        if config != None:
+            emb_size = config["emb_size"]
+            encoder_depth = config["encoder_depth"]
+            decoder_depth = config["decoder_depth"]
+            n_classes = config["n_classes"]
+            channel = config["channel"]
+            proj_size = config["proj_size"]
             
-#         # print(f"Emb_size: {emb_size}")
-#         super().__init__(
-
-#             PatchEmbedding(emb_size, channel),
-#             # Embedding(),
-#             TransformerEncoder(encoder_depth, emb_size, config),
-#             # DeformableTransformerEncoder(encoder_depth, emb_size, config),
-#             # ClassificationHead(emb_size, n_classes)
-#             # Projection(emb_size, proj_size, config),
-#             TransformerDecoder(decoder_depth, n_classes, proj_size, config),
-#             ClassificationHead2(proj_size, n_classes)
-#         )
+        # print(f"Emb_size: {emb_size}")
+        super().__init__(
+            PatchEmbedding(emb_size, channel),
+            TransformerEncoder(encoder_depth, emb_size, config),
+            ClassificationHead(emb_size, n_classes)
+        )
 
 class DeformableConformer(nn.Module):
     def __init__(self, emb_size=40, 
@@ -592,4 +586,4 @@ class DeformableConformer(nn.Module):
         feat = self.encoder(emb)
         queries = self.decoder(feat)
         ans = self.classifier(queries)
-        return feat, ans
+        return queries, ans

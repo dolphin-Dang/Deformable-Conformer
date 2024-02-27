@@ -28,11 +28,11 @@ config = {
     'sub_res_path': "./results/sub%d/log.txt",
     
     # train mode
-    'mode': 'BCIC', # 'BCIC' / 'LYH' 
+    'mode': 'LYH', # 'BCIC' / 'LYH' 
     'train_prop': 0.8,
     'pretrained': False,
-    'pretrained_pth': './results_closs_query_8125',
-    'use_center_loss': True,
+    'pretrained_pth': './results_closs_feat_8125',
+    'use_center_loss': False,
     
     # model config
     'emb_size': 40,
@@ -40,7 +40,7 @@ config = {
     'encoder_depth': 4,
     'decoder_depth': 2,
     'n_classes': 4,
-    'channel': 22,
+    'channel': 14,
     
     'encoder_config': {
             'num_heads': 8,
@@ -65,13 +65,52 @@ config = {
     
     # training config (adam)
     'batch_size': 72,
-    'n_epochs': 2000,
-    'lr': 0.002,
+    'n_epochs': 200,
+    'lr': 0.0002,
     'b1': 0.9,
     'b2': 0.999,
     'Lambda': 0.0003
 }
 
+
+def main_lyh():
+    res_path = config["res_path"]
+    dir_name = os.path.dirname(res_path)
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name)
+
+    result_write = open(res_path, "w")
+    result_write.write('config: \n')
+    result_write.write(json.dumps(config, indent=4))
+    result_write.write("\n\n")
+    print(config)
+    
+    starttime = datetime.datetime.now()
+    seed_n = np.random.randint(2021)
+    print('seed is ' + str(seed_n))
+    random.seed(seed_n)
+    np.random.seed(seed_n)
+    torch.manual_seed(seed_n)
+    torch.cuda.manual_seed(seed_n)
+    torch.cuda.manual_seed_all(seed_n)
+
+    print('LYH data train & test')
+    exp = ExP(0, config)
+
+    bestAcc, averAcc, cm, best_acc_ep = exp.train()
+    print('THE BEST ACCURACY IS ' + str(bestAcc))
+    result_write.write('Seed is: ' + str(seed_n) + "\n")
+    result_write.write('The best accuracy is: ' + str(bestAcc) + "\n")
+    result_write.write('The average accuracy is: ' + str(averAcc) + "\n")
+    result_write.write('Best accuracy appears in: ' + str(best_acc_ep) + " epoch.\n")
+
+    endtime = datetime.datetime.now()
+    result_write.write('Duration: ' + str(endtime - starttime) + "\n")
+    print('Duration: ' + str(endtime - starttime))
+
+    result_write.write('\nconfusion_matirx:\n')
+    result_write.write(str(cm))
+    result_write.close()
 
 
 def main():
@@ -134,5 +173,9 @@ def main():
 
 if __name__ == "__main__":
     print(time.asctime(time.localtime(time.time())))
-    main()
+    if config["mode"] == 'BCIC':
+        main()
+    elif config["mode"] == 'LYH':
+        main_lyh()
+          
     print(time.asctime(time.localtime(time.time())))

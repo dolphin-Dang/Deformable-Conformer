@@ -1,0 +1,52 @@
+config: 
+{
+    "res_path": "./results/sub_result.txt",
+    "sub_res_path": "./results/sub%d/log.txt",
+    "mode": "LYH",
+    "train_prop": 0.8,
+    "pretrained": false,
+    "pretrained_pth": "./results_closs_feat_8125",
+    "use_center_loss": false,
+    "emb_size": 40,
+    "proj_size": 40,
+    "encoder_depth": 4,
+    "decoder_depth": 2,
+    "n_classes": 4,
+    "channel": 14,
+    "encoder_config": {
+        "num_heads": 8,
+        "drop_p": 0.5,
+        "forward_expansion": 4,
+        "forward_drop_p": 0.5,
+        "num_of_points": 16
+    },
+    "decoder_config": {
+        "num_heads": 8,
+        "drop_p": 0.5,
+        "forward_expansion": 4,
+        "forward_drop_p": 0.5,
+        "num_of_points": 24
+    },
+    "hidden_size_1": 256,
+    "hidden_size_2": 64,
+    "drop_p_1": 0.5,
+    "drop_p_2": 0.3,
+    "batch_size": 72,
+    "n_epochs": 200,
+    "lr": 0.0002,
+    "b1": 0.9,
+    "b2": 0.999,
+    "Lambda": 0.0003
+}
+
+Seed is: 1265
+The best accuracy is: 0.8975
+The average accuracy is: 0.778275
+Best accuracy appears in: 165 epoch.
+Duration: 0:04:40.759342
+
+confusion_matirx:
+[[ 88  12   0   0]
+ [  1  71  20   8]
+ [  0   0 100   0]
+ [  0   0   0 100]]

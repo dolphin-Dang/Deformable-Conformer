@@ -312,52 +312,54 @@ class ClassificationHead2(nn.Module):
         self.n_classes = n_classes
 
         hidden_size_1 = 256
-        hidden_size_2 = 32
+        hidden_size_2 = 64
         drop_p_1 = 0.5
         drop_p_2 = 0.3
+        num_q = n_classes
         if config != None:
             hidden_size_1 = config["hidden_size_1"]
             hidden_size_2 = config["hidden_size_2"]
             drop_p_1 = config["drop_p_1"]
             drop_p_2 = config["drop_p_2"]
+            num_q = config["num_queries"]
         
-        # self.classification_proj = nn.Sequential(
+        self.classification_proj = nn.Sequential(
+                nn.Linear(emb_size*num_q, hidden_size_1),
+                nn.ELU(),
+                nn.Dropout(drop_p_1),
+                nn.Linear(hidden_size_1, hidden_size_2),
+                nn.ELU(),
+                nn.Dropout(drop_p_2),
+                nn.Linear(hidden_size_2, 4)
+            )
+        
+        # self.classification_mlps = nn.ModuleList()
+        # for _ in range(n_classes):
+        #     mlp = nn.Sequential(
         #         nn.Linear(emb_size, hidden_size_1),
         #         nn.ELU(),
         #         nn.Dropout(drop_p_1),
         #         nn.Linear(hidden_size_1, hidden_size_2),
         #         nn.ELU(),
         #         nn.Dropout(drop_p_2),
-        #         nn.Linear(hidden_size_2, 1)
+        #         nn.Linear(hidden_size_2, 2)
         #     )
-        
-        self.classification_mlps = nn.ModuleList()
-        for _ in range(n_classes):
-            mlp = nn.Sequential(
-                nn.Linear(emb_size, hidden_size_1),
-                nn.ELU(),
-                nn.Dropout(drop_p_1),
-                nn.Linear(hidden_size_1, hidden_size_2),
-                nn.ELU(),
-                nn.Dropout(drop_p_2),
-                nn.Linear(hidden_size_2, 2)
-            )
-            self.classification_mlps.append(mlp)
+        #     self.classification_mlps.append(mlp)
 
     def forward(self, input):
         '''
-        Input: (batch_size, n_classes, emb_size)
+        Input: (batch_size, num_q, emb_size)
         '''
         
-        xs = torch.chunk(input, chunks=self.n_classes, dim=1) # (bs, 1, emb)
+#         xs = torch.chunk(input, chunks=self.n_classes, dim=1) # (bs, 1, emb)
         
-        # multiple mlps, binary classification
-        outputs = []
-        for i, mlp in enumerate(self.classification_mlps):
-            # output = F.softmax(mlp(xs[i].squeeze(dim=1))) # (bs, 2): binary classification
-            output = mlp(xs[i].squeeze(dim=1))
-            outputs.append(output[:, 0].unsqueeze(1)) # the prob that query is the i-th class
-        output = torch.cat(outputs, dim=1)
+#         # multiple mlps, binary classification
+#         outputs = []
+#         for i, mlp in enumerate(self.classification_mlps):
+#             # output = F.softmax(mlp(xs[i].squeeze(dim=1))) # (bs, 2): binary classification
+#             output = mlp(xs[i].squeeze(dim=1))
+#             outputs.append(output[:, 0].unsqueeze(1)) # the prob that query is the i-th class
+#         output = torch.cat(outputs, dim=1)
         
         
         # single mlp, multiple classification
@@ -371,7 +373,7 @@ class ClassificationHead2(nn.Module):
         # output = torch.cat(outputs, dim=1)
         
         # use one mlp to do projection
-        # output = self.classification_proj(input).squeeze()
+        output = self.classification_proj(input.reshape(input.size(0),-1))
        
         # strange good performance
         # outputs = []
@@ -509,7 +511,10 @@ class TransformerDecoder(nn.Module):
         # self.obj_query_proj = nn.Linear(61, n_classes)
         
         # randomly initialize query
-        self.obj_query = nn.Parameter(torch.randn(n_classes, emb_size))
+        num_queries = n_classes
+        if config!=None:
+            num_queries = config["num_queries"]
+        self.obj_query = nn.Parameter(torch.randn(num_queries, emb_size))
 
         '''
         note: two ways of query initialization hardly influence performance.
@@ -579,7 +584,7 @@ class DeformableConformer(nn.Module):
         self.patch_embedding = PatchEmbedding(emb_size, channel)
         self.encoder = TransformerEncoder(encoder_depth, emb_size, config)
         self.decoder = TransformerDecoder(decoder_depth, n_classes, proj_size, config)
-        self.classifier = ClassificationHead2(proj_size, n_classes)
+        self.classifier = ClassificationHead2(proj_size, n_classes, config)
        
     def forward(self, input):
         emb = self.patch_embedding(input)

@@ -37,6 +37,7 @@ class ExP():
         self.channel = 22
         self.mode = "BCIC"
         self.n_classes = 4
+        self.num_queries = self.n_classes
         self.Lambda = 0.0005
         self.use_center_loss = False
         
@@ -59,6 +60,7 @@ class ExP():
             self.n_classes = config["n_classes"]
             self.Lambda = config["Lambda"]
             self.use_center_loss = config["use_center_loss"]
+            self.num_queries = config["num_queries"]
         
         dir_name = os.path.dirname(self.res_path)
         if not os.path.exists(dir_name):
@@ -72,7 +74,8 @@ class ExP():
         self.criterion_l1 = torch.nn.L1Loss().cuda()
         self.criterion_l2 = torch.nn.MSELoss().cuda()
         self.criterion_cls = torch.nn.CrossEntropyLoss().cuda()
-        self.center_loss = CenterLoss(num_classes=self.n_classes, feat_dim=self.n_classes*config["proj_size"], use_gpu=True)
+        # self.center_loss = CenterLoss(num_classes=self.n_classes, feat_dim=config["proj_size"], use_gpu=True)
+        self.center_loss = CenterLoss(num_classes=self.n_classes, feat_dim=self.num_queries*config["proj_size"], use_gpu=True)
         # self.center_loss = CenterLoss(num_classes=self.n_classes, feat_dim=61*40, use_gpu=True)
         
         self.model = DeformableConformer(config=self.config).cuda()
@@ -169,12 +172,12 @@ class ExP():
         print(cur_path)
         
         # train data
-        left_raw = np.load('./data/lyh_data/left_processed_v3(500).npy') # label: 0
-        right_raw = np.load('./data/lyh_data/right_processed_v3(500).npy') # label: 1
-        leg_raw = np.load('./data/lyh_data/leg_processed_v3(500).npy') # label: 2
-        nothing_raw = np.load('./data/lyh_data/nothing_processed_v3(500).npy') # label: 3
-        eeg_raw = [left_raw, right_raw, leg_raw, nothing_raw]
-        eeg_raw = [t[:14,:] for t in eeg_raw]
+        # left_raw = np.load('./data/lyh_data/left_processed_v3(500).npy') # label: 0
+        # right_raw = np.load('./data/lyh_data/right_processed_v3(500).npy') # label: 1
+        # leg_raw = np.load('./data/lyh_data/leg_processed_v3(500).npy') # label: 2
+        # nothing_raw = np.load('./data/lyh_data/nothing_processed_v3(500).npy') # label: 3
+        # eeg_raw = [left_raw, right_raw, leg_raw, nothing_raw]
+        # eeg_raw = [t[:14,:] for t in eeg_raw]
         
         # test data
         left_raw_test = np.load('./data/lyh_data/left_processed_v2(300).npy') # label: 0
@@ -192,30 +195,30 @@ class ExP():
         for i in range(self.config["n_classes"]):
             # print(f"Data shape: {eeg_raw[i].shape}")
             # cross-session
-#             split_data = np.split(eeg_raw[i], 500, axis=1)
-#             X_raw = np.stack(split_data, axis=0) # (14, 50_0000) => (500, 14, 1000)
-#             X_raw = np.expand_dims(X_raw, axis=1) # (500, 1, 14, 1000)
-#             y_raw = np.array([i for j in range(500)]) # (500,) value = label
-#             X_train.append(X_raw)
-#             y_train.append(y_raw)
-            
-#             split_data_test = np.split(eeg_raw_test[i], 300, axis=1)
-#             X_raw_test = np.stack(split_data_test, axis=0) # (14, 30_0000) => (300, 14, 1000)
-#             X_raw_test = np.expand_dims(X_raw_test, axis=1) # (300, 1, 14, 1000)
-#             y_raw_test = np.array([i for j in range(300)]) # (300,) value = label
-#             X_test.append(X_raw_test)
-#             y_test.append(y_raw_test)
-
-            # in-session
             split_data = np.split(eeg_raw[i], 500, axis=1)
             X_raw = np.stack(split_data, axis=0) # (14, 50_0000) => (500, 14, 1000)
             X_raw = np.expand_dims(X_raw, axis=1) # (500, 1, 14, 1000)
             y_raw = np.array([i for j in range(500)]) # (500,) value = label
-            train_prop = int(self.config["train_prop"]*len(X_raw))
-            X_train.append(X_raw[:train_prop,:,:,:])
-            X_test.append(X_raw[train_prop:,:,:,:])
-            y_train.append(y_raw[:train_prop])
-            y_test.append(y_raw[train_prop:])
+            X_train.append(X_raw)
+            y_train.append(y_raw)
+            
+            split_data_test = np.split(eeg_raw_test[i], 300, axis=1)
+            X_raw_test = np.stack(split_data_test, axis=0) # (14, 30_0000) => (300, 14, 1000)
+            X_raw_test = np.expand_dims(X_raw_test, axis=1) # (300, 1, 14, 1000)
+            y_raw_test = np.array([i for j in range(300)]) # (300,) value = label
+            X_test.append(X_raw_test)
+            y_test.append(y_raw_test)
+
+            # in-session
+            # split_data = np.split(eeg_raw[i], 500, axis=1)
+            # X_raw = np.stack(split_data, axis=0) # (14, 50_0000) => (500, 14, 1000)
+            # X_raw = np.expand_dims(X_raw, axis=1) # (500, 1, 14, 1000)
+            # y_raw = np.array([i for j in range(500)]) # (500,) value = label
+            # train_prop = int(self.config["train_prop"]*len(X_raw))
+            # X_train.append(X_raw[:train_prop,:,:,:])
+            # X_test.append(X_raw[train_prop:,:,:,:])
+            # y_train.append(y_raw[:train_prop])
+            # y_test.append(y_raw[train_prop:])
  
         X_train = np.concatenate(X_train)
         y_train = np.concatenate(y_train)
@@ -338,6 +341,7 @@ class ExP():
         #         list(self.model.classifier.parameters()), 
         #         lr=self.lr, betas=(self.b1, self.b2))
         # else:
+        #     self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, betas=(self.b1, self.b2))
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, betas=(self.b1, self.b2))
             
         test_data = Variable(test_data.type(self.Tensor))
@@ -364,7 +368,7 @@ class ExP():
         for e in range(self.n_epochs):
             # in_epoch = time.time()
             self.model.train()
-            
+            # lambda_ = lambda_decend(self.Lambda, self.n_epochs, e)
             for i, (img, label) in enumerate(self.dataloader):
 
                 img = Variable(img.cuda().type(self.Tensor))
@@ -381,7 +385,6 @@ class ExP():
                 
                 # outputs = self.model(img)
                 tok, outputs = self.model(img)
-                
                 loss = self.criterion_cls(outputs, label) 
                 if self.use_center_loss:
                     center_loss = self.center_loss(tok.reshape(label.size(0), -1), label) * self.Lambda
@@ -406,7 +409,7 @@ class ExP():
 #                     self.optimizer_feat.step()
 #                 else:
 #                     self.optimizer.zero_grad()
-#                     center_loss.backward()
+#                     loss.backward()
 #                     self.optimizer.step()
             # out_epoch = time.time()
 

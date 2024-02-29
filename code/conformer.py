@@ -28,11 +28,11 @@ config = {
     'sub_res_path': "./results/sub%d/log.txt",
     
     # train mode
-    'mode': 'LYH', # 'BCIC' / 'LYH' 
+    'mode': 'BCIC', # 'BCIC' / 'LYH' 
     'train_prop': 0.8,
     'pretrained': False,
-    'pretrained_pth': './results_closs_feat_8125',
-    'use_center_loss': False,
+    'pretrained_pth': './results_lyh/results_lyh_4cls_in',
+    'use_center_loss': True,
     
     # model config
     'emb_size': 40,
@@ -40,7 +40,8 @@ config = {
     'encoder_depth': 4,
     'decoder_depth': 2,
     'n_classes': 4,
-    'channel': 14,
+    'channel': 22,
+    'num_queries': 6,
     
     'encoder_config': {
             'num_heads': 8,
@@ -65,11 +66,11 @@ config = {
     
     # training config (adam)
     'batch_size': 72,
-    'n_epochs': 200,
-    'lr': 0.0002,
+    'n_epochs': 2000,
+    'lr': 0.002,
     'b1': 0.9,
     'b2': 0.999,
-    'Lambda': 0.0003
+    'Lambda': 0.0005
 }
 
 

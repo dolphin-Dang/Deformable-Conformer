@@ -170,11 +170,6 @@ class FeedForwardBlock(nn.Sequential):
         )
 
 
-# class GELU(nn.Module):
-#     def forward(self, input: Tensor) -> Tensor:
-#         return input*0.5*(1.0+torch.erf(input/math.sqrt(2.0)))
-
-
 class TransformerEncoderBlock(nn.Sequential):
     def __init__(self,
                  emb_size,
@@ -197,51 +192,6 @@ class TransformerEncoderBlock(nn.Sequential):
             )
             ))
         
-        
-class DeformableTransformerEncoderBlock(nn.Module):
-    def __init__(self,
-                 emb_size,
-                 num_heads=10,
-                 drop_p=0.5,
-                 forward_expansion=4,
-                 forward_drop_p=0.5,
-                 num_of_points=10):
-        super().__init__()
-        self.emb_size = emb_size
-        self.num_heads = num_heads
-        self.drop_p = drop_p
-        self.forward_expansion = forward_expansion
-        self.forward_drop_p = forward_drop_p
-        
-        self.ln_1 = nn.LayerNorm(emb_size)
-        self.dca = DeformableCrossAttention(num_heads, emb_size, drop_p, num_of_points)
-        self.dropout1 = nn.Dropout(drop_p)
-        
-        self.ffc = ResidualAdd(nn.Sequential(
-                        nn.LayerNorm(emb_size),
-                        FeedForwardBlock(
-                            emb_size, expansion=forward_expansion, drop_p=forward_drop_p),
-                        nn.Dropout(drop_p)
-                    ))
-    
-    def forward(self, input):
-        x = input
-        input = self.ln_1(input)
-        # temp = input.detach()
-        input = self.dca(input, input)
-        input = self.dropout1(input) + x
-        
-        input = self.ffc(input)
-        return input
-        
-class DeformableTransformerEncoder(nn.Sequential):
-    def __init__(self, depth, emb_size, config=None):
-        if config != None:
-            super().__init__(*[DeformableTransformerEncoderBlock(emb_size, **config["encoder_config"])
-                               for _ in range(depth)])
-        else:
-            super().__init__(*[DeformableTransformerEncoderBlock(emb_size) for _ in range(depth)])     
-
 
 class TransformerEncoder(nn.Sequential):
     def __init__(self, depth, emb_size, config=None):
@@ -289,7 +239,8 @@ class ClassificationHead(nn.Sequential):
         self.fc = nn.Sequential(
             # 2440 = 61*40
             # another hard code potential bug here
-            nn.Linear(2440, hidden_size_1),
+            # nn.Linear(2440, hidden_size_1), # 1000 sample data
+            nn.Linear(440, hidden_size_1), # 250 sample data
             nn.ELU(),
             nn.Dropout(drop_p_1),
             nn.Linear(hidden_size_1, hidden_size_2),
@@ -301,8 +252,8 @@ class ClassificationHead(nn.Sequential):
     def forward(self, x):
         x = x.contiguous().view(x.size(0), -1)
         out = self.fc(x)
-        # return x, out
-        return out
+        return x, out
+        # return out
 
 
 class ClassificationHead2(nn.Module):
@@ -537,7 +488,6 @@ class TransformerDecoder(nn.Module):
 class Conformer(nn.Sequential):
     def __init__(self, emb_size=40, 
             encoder_depth=6, 
-            decoder_depth=3,
             n_classes=4, 
             config=None):
         '''

@@ -28,7 +28,7 @@ config = {
     'sub_res_path': "./results/sub%d/log.txt",
     
     # train mode
-    'mode': 'LYH', # 'BCIC' / 'LYH' 
+    'mode': 'BCIC', # 'BCIC' / 'LYH' 
     'train_prop': 0.8,
     'pretrained': False,
     'pretrained_pth': './results_lyh/results_lyh_4cls_in',
@@ -37,13 +37,19 @@ config = {
     # model config
     'deformable': False,
     'emb_size': 40,
-    'proj_size': 40,
-    'encoder_depth': 4,
+    'proj_size': 20,
+    'encoder_depth': 6,
     'decoder_depth': 2,
     'n_classes': 4,
-    'channel': 14,
-    'seq_len': 250,
+    'channel': 22,
+    'seq_len': 1000,
     'num_queries': 6,
+    
+    # EEGMamba
+    'mamba': True,
+    'mamba_depth': 3,
+    'block_depth': 3,
+    'conv_channel': 20,
     
     'encoder_config': {
             'num_heads': 8,
@@ -54,7 +60,7 @@ config = {
         },
     
     'decoder_config': {
-            'num_heads': 8,
+            'num_heads': 4,
             'drop_p': 0.5,
             'forward_expansion': 4,
             'forward_drop_p': 0.5,

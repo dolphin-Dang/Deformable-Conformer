@@ -15,11 +15,13 @@ from torchsummary import summary
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import train_test_split
 from CenterLoss import CenterLoss
+from EEGMamba import EEGMamba
 
 import matplotlib.pyplot as plt
 
 import scipy.io
 import sys
+import gc
 
 gpus = [0]
 os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID' # arrange GPUs
@@ -40,7 +42,8 @@ class ExP():
         self.num_queries = self.n_classes
         self.Lambda = 0.0005
         self.use_center_loss = False
-        deformable = True
+        self.deformable = False
+        self.mamba = False
         
         self.start_epoch = 0
         # self.root = '/Data/strict_TE/'
@@ -62,7 +65,8 @@ class ExP():
             self.Lambda = config["Lambda"]
             self.use_center_loss = config["use_center_loss"]
             self.num_queries = config["num_queries"]
-            deformable = config["deformable"]
+            self.deformable = config["deformable"]
+            self.mamba = config["mamba"]
         
         dir_name = os.path.dirname(self.res_path)
         if not os.path.exists(dir_name):
@@ -77,12 +81,18 @@ class ExP():
         self.criterion_l2 = torch.nn.MSELoss().cuda()
         self.criterion_cls = torch.nn.CrossEntropyLoss().cuda()
         # self.center_loss = CenterLoss(num_classes=self.n_classes, feat_dim=config["proj_size"], use_gpu=True)
-        self.center_loss = CenterLoss(num_classes=self.n_classes, feat_dim=self.num_queries*config["proj_size"], use_gpu=True)
+        # self.center_loss = CenterLoss(num_classes=self.n_classes, feat_dim=self.num_queries*config["proj_size"], use_gpu=True)
         # self.center_loss = CenterLoss(num_classes=self.n_classes, feat_dim=61*40, use_gpu=True)
+        self.center_loss = CenterLoss(num_classes=self.n_classes, feat_dim=61*20, use_gpu=True)
         
-        if deformable:
+        if self.deformable:
+            print("Deformable Conformer.")
             self.model = DeformableConformer(config=self.config).cuda()
+        elif self.mamba:
+            print("EEGMamba.")
+            self.model = EEGMamba(config=self.config).cuda()
         else:
+            print("Conformer.")
             self.model = Conformer(config=self.config).cuda()
 
         # two-stage training
@@ -386,6 +396,8 @@ class ExP():
         for e in range(self.n_epochs):
             # in_epoch = time.time()
             self.model.train()
+            gc.collect()
+            torch.cuda.empty_cache()
             # lambda_ = lambda_decend(self.Lambda, self.n_epochs, e)
             for i, (img, label) in enumerate(self.dataloader):
 
@@ -434,8 +446,9 @@ class ExP():
             # test process
             if (e + 1) % 1 == 0:
                 self.model.eval()
-                Tok, Cls = self.model(test_data)
-                # Cls = self.model(test_data)
+                with torch.no_grad():
+                    Tok, Cls = self.model(test_data)
+                    # Cls = self.model(test_data)
 
                 loss_test = self.criterion_cls(Cls, test_label)
                 if self.use_center_loss:

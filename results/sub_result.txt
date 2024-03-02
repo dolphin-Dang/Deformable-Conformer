@@ -1,0 +1,48 @@
+config: 
+{
+    "res_path": "./results/sub_result.txt",
+    "sub_res_path": "./results/sub%d/log.txt",
+    "mode": "BCIC",
+    "train_prop": 0.8,
+    "pretrained": false,
+    "pretrained_pth": "./results_lyh/results_lyh_4cls_in",
+    "use_center_loss": false,
+    "deformable": false,
+    "emb_size": 40,
+    "proj_size": 20,
+    "encoder_depth": 6,
+    "decoder_depth": 2,
+    "n_classes": 4,
+    "channel": 22,
+    "seq_len": 1000,
+    "num_queries": 6,
+    "mamba": true,
+    "mamba_depth": 3,
+    "block_depth": 3,
+    "conv_channel": 20,
+    "encoder_config": {
+        "num_heads": 8,
+        "drop_p": 0.5,
+        "forward_expansion": 4,
+        "forward_drop_p": 0.5,
+        "num_of_points": 16
+    },
+    "decoder_config": {
+        "num_heads": 4,
+        "drop_p": 0.5,
+        "forward_expansion": 4,
+        "forward_drop_p": 0.5,
+        "num_of_points": 24
+    },
+    "hidden_size_1": 256,
+    "hidden_size_2": 64,
+    "drop_p_1": 0.5,
+    "drop_p_2": 0.3,
+    "batch_size": 72,
+    "n_epochs": 500,
+    "lr": 0.002,
+    "b1": 0.9,
+    "b2": 0.999,
+    "Lambda": 0.0005
+}
+

@@ -239,8 +239,8 @@ class ClassificationHead(nn.Sequential):
         self.fc = nn.Sequential(
             # 2440 = 61*40
             # another hard code potential bug here
-            # nn.Linear(2440, hidden_size_1), # 1000 sample data
-            nn.Linear(440, hidden_size_1), # 250 sample data
+            nn.Linear(2440, hidden_size_1), # 1000 sample data
+            # nn.Linear(440, hidden_size_1), # 250 sample data
             nn.ELU(),
             nn.Dropout(drop_p_1),
             nn.Linear(hidden_size_1, hidden_size_2),
@@ -542,3 +542,4 @@ class DeformableConformer(nn.Module):
         queries = self.decoder(feat)
         ans = self.classifier(queries)
         return queries, ans
+    

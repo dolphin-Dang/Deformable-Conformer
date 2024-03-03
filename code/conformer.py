@@ -28,25 +28,25 @@ config = {
     'sub_res_path': "./results/sub%d/log.txt",
     
     # train mode
-    'mode': 'BCIC', # 'BCIC' / 'LYH' 
+    'mode': 'LYH', # 'BCIC' / 'LYH' 
     'train_prop': 0.8,
     'pretrained': False,
-    'pretrained_pth': './results_lyh/results_lyh_4cls_in',
+    'pretrained_pth': './results_',
     'use_center_loss': False,
     
     # model config
-    'deformable': False,
+    'deformable': True,
     'emb_size': 40,
-    'proj_size': 20,
-    'encoder_depth': 6,
+    'proj_size': 40,
+    'encoder_depth': 4,
     'decoder_depth': 2,
-    'n_classes': 4,
-    'channel': 22,
-    'seq_len': 1000,
-    'num_queries': 6,
+    'n_classes': 3,
+    'channel': 14,
+    'seq_len': 250,
+    'num_queries': 3,
     
     # EEGMamba
-    'mamba': True,
+    'mamba': False,
     'mamba_depth': 3,
     'block_depth': 3,
     'conv_channel': 20,
@@ -60,7 +60,7 @@ config = {
         },
     
     'decoder_config': {
-            'num_heads': 4,
+            'num_heads': 8,
             'drop_p': 0.5,
             'forward_expansion': 4,
             'forward_drop_p': 0.5,
@@ -73,9 +73,9 @@ config = {
     'drop_p_2': 0.3,
     
     # training config (adam)
-    'batch_size': 72,
-    'n_epochs': 500,
-    'lr': 0.002,
+    'batch_size': 100,
+    'n_epochs': 80,
+    'lr': 0.0002,
     'b1': 0.9,
     'b2': 0.999,
     'Lambda': 0.0005

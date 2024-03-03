@@ -186,21 +186,27 @@ class ExP():
         cur_path = os.getcwd()
         print(cur_path)
         
-        # train data
-        left_raw = np.load('./data/lyh_data/left_processed_v3(500).npy') # label: 0
-        right_raw = np.load('./data/lyh_data/right_processed_v3(500).npy') # label: 1
-        leg_raw = np.load('./data/lyh_data/leg_processed_v3(500).npy') # label: 2
-        nothing_raw = np.load('./data/lyh_data/nothing_processed_v3(500).npy') # label: 3
-        eeg_raw = [left_raw, right_raw, leg_raw, nothing_raw]
-        eeg_raw = [t[:14,:] for t in eeg_raw]
+                
+        left_raw2 = np.load('./data/lyh_data/left_processed_v2(300).npy') # label: 0
+        right_raw2 = np.load('./data/lyh_data/right_processed_v2(300).npy') # label: 1
+        leg_raw2 = np.load('./data/lyh_data/leg_processed_v2(300).npy') # label: 2
+        nothing_raw2 = np.load('./data/lyh_data/nothing_processed_v2(300).npy') # label: 3
+        eeg_raw2 = [left_raw2, right_raw2, leg_raw2, nothing_raw2]
+        eeg_raw2 = [t[:14,:] for t in eeg_raw2]
         
-        # test data
-        left_raw_test = np.load('./data/lyh_data/left_processed_v2(300).npy') # label: 0
-        right_raw_test = np.load('./data/lyh_data/right_processed_v2(300).npy') # label: 1
-        leg_raw_test = np.load('./data/lyh_data/leg_processed_v2(300).npy') # label: 2
-        nothing_raw_test = np.load('./data/lyh_data/nothing_processed_v2(300).npy') # label: 3
-        eeg_raw_test = [left_raw_test, right_raw_test, leg_raw_test, nothing_raw_test]
-        eeg_raw_test = [t[:14,:] for t in eeg_raw_test]
+        left_raw3 = np.load('./data/lyh_data/left_processed_v3(500).npy') # label: 0
+        right_raw3 = np.load('./data/lyh_data/right_processed_v3(500).npy') # label: 1
+        leg_raw3 = np.load('./data/lyh_data/leg_processed_v3(500).npy') # label: 2
+        nothing_raw3 = np.load('./data/lyh_data/nothing_processed_v3(500).npy') # label: 3
+        eeg_raw3 = [left_raw3, right_raw3, leg_raw3, nothing_raw3]
+        eeg_raw3 = [t[:14,:] for t in eeg_raw3]
+
+        left_raw4 = np.load('./data/lyh_data/left_processed_v4(500).npy') # label: 0
+        right_raw4 = np.load('./data/lyh_data/right_processed_v4(500).npy') # label: 1
+        leg_raw4 = np.load('./data/lyh_data/leg_processed_v4(500).npy') # label: 2
+        nothing_raw4 = np.load('./data/lyh_data/nothing_processed_v4(500).npy') # label: 3
+        eeg_raw4 = [left_raw4, right_raw4, leg_raw4, nothing_raw4]
+        eeg_raw4 = [t[:14,:] for t in eeg_raw4]
         
         X_train = []
         X_test = []
@@ -210,58 +216,58 @@ class ExP():
         for i in range(self.config["n_classes"]):
             # print(f"Data shape: {eeg_raw[i].shape}")
             # cross-session
-#             split_data = np.split(eeg_raw[i], 500, axis=1)
-#             X_raw = np.stack(split_data, axis=0) # (14, 50_0000) => (500, 14, 1000)
-#             X_raw = np.expand_dims(X_raw, axis=1) # (500, 1, 14, 1000)
-#             y_raw = np.array([i for j in range(500)]) # (500,) value = label
-#             X_train.append(X_raw)
-#             y_train.append(y_raw)
+            split_data = np.split(eeg_raw3[i], 2000, axis=1)
+            X_raw = np.stack(split_data, axis=0) # (14, 50_0000) => (2000, 14, 250)
+            X_raw = np.expand_dims(X_raw, axis=1) # (2000, 1, 14, 250)
+            y_raw = np.array([i for j in range(2000)]) # (2000,) value = label
+            X_train.append(X_raw)
+            y_train.append(y_raw)
             
-#             split_data_test = np.split(eeg_raw_test[i], 300, axis=1)
-#             X_raw_test = np.stack(split_data_test, axis=0) # (14, 30_0000) => (300, 14, 1000)
-#             X_raw_test = np.expand_dims(X_raw_test, axis=1) # (300, 1, 14, 1000)
-#             y_raw_test = np.array([i for j in range(300)]) # (300,) value = label
-#             X_test.append(X_raw_test)
-#             y_test.append(y_raw_test)
+            split_data = np.split(eeg_raw2[i], 1200, axis=1)
+            X_raw = np.stack(split_data, axis=0) # (14, 30_0000) => (1200, 14, 250)
+            X_raw = np.expand_dims(X_raw, axis=1) # (1200, 1, 14, 250)
+            y_raw = np.array([i for j in range(1200)]) # (1200,) value = label
+            X_train.append(X_raw)
+            y_train.append(y_raw)
+            
+            split_data_test = np.split(eeg_raw4[i], 2000, axis=1)
+            X_raw_test = np.stack(split_data_test, axis=0) # (14, 30_0000) => (1200, 14, 250)
+            X_raw_test = np.expand_dims(X_raw_test, axis=1) # (1200, 1, 14, 250)
+            y_raw_test = np.array([i for j in range(2000)]) # (1200,) value = label
+            X_test.append(X_raw_test)
+            y_test.append(y_raw_test)
 
             # in-session
-            split_data = np.split(eeg_raw[i], 500, axis=1)
-            X_raw = np.stack(split_data, axis=0) # (14, 50_0000) => (500, 14, 1000)
-            X_raw = np.expand_dims(X_raw, axis=1) # (500, 1, 14, 1000)
-            y_raw = np.array([i for j in range(500)]) # (500,) value = label
-            train_prop = int(self.config["train_prop"]*len(X_raw))
-            X_train.append(X_raw[:train_prop,:,:,:])
-            X_test.append(X_raw[train_prop:,:,:,:])
-            y_train.append(y_raw[:train_prop])
-            y_test.append(y_raw[train_prop:])
- 
+            # split_data = np.split(eeg_raw[i], 2000, axis=1)
+            # X_raw = np.stack(split_data, axis=0) # (14, 50_0000) => (500, 14, 1000)
+            # X_raw = np.expand_dims(X_raw, axis=1) # (500, 1, 14, 1000)
+            # y_raw = np.array([i for j in range(2000)]) # (500,) value = label
+            # train_prop = int(self.config["train_prop"]*len(X_raw))
+            # X_train.append(X_raw[:train_prop,:,:,:])
+            # X_test.append(X_raw[train_prop:,:,:,:])
+            # y_train.append(y_raw[:train_prop])
+            # y_test.append(y_raw[train_prop:])
+
         X_train = np.concatenate(X_train)
         y_train = np.concatenate(y_train)
         X_test = np.concatenate(X_test)
         y_test = np.concatenate(y_test)
         
-        # X_train_1s = np.split(X_train, 4, axis=-1)
-        # X_train_1s = np.concatenate(X_train_1s, axis=0)
-        # y_train_1s = np.repeat(y_train, 4, axis=0)
-        # X_test_1s = np.split(X_test, 4, axis=-1)
-        # X_test_1s = np.concatenate(X_test_1s, axis=0)
-        # y_test_1s = np.repeat(y_test, 4, axis=0)
-
-        X_train = X_train[:,:,:,250:500]
-        y_train = y_train
-        X_test = X_test[:,:,:,750:1000]
-        y_test = y_test
-
+        shuffle_num = np.random.permutation(len(X_train))
+        X_train = X_train[shuffle_num, :, :, :]
+        y_train = y_train[shuffle_num]
+        
+        # num = 50
+        # X_train = X_train[:num,:,:,:]
+        # y_train = y_train[:num]
+        # X_test = X_test[num:,:,:,:]
+        # y_test = y_test[num:]
         
         print(X_train.shape)
         print(y_train.shape)
         print(X_test.shape)
         print(y_test.shape)
-    
-        shuffle_num = np.random.permutation(len(X_train))
-        X_train = X_train[shuffle_num, :, :, :]
-        y_train = y_train[shuffle_num]
-        
+
         self.train_data = X_train
         self.train_label = y_train
         self.allData = np.concatenate([X_train, X_test])
@@ -459,7 +465,7 @@ class ExP():
                 acc = float((y_pred == test_label).cpu().numpy().astype(int).sum()) / float(test_label.size(0))
                 train_pred = torch.max(outputs, 1)[1]
                 train_acc = float((train_pred == label).cpu().numpy().astype(int).sum()) / float(label.size(0))
-
+                # print((train_pred == label).cpu().numpy().astype(int).sum())
                 print('Epoch:', e,
                       '  Train loss: %.6f' % loss.detach().cpu().numpy(),
                       '  Test loss: %.6f' % loss_test.detach().cpu().numpy(),

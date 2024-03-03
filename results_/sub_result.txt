@@ -2,21 +2,21 @@ config:
 {
     "res_path": "./results/sub_result.txt",
     "sub_res_path": "./results/sub%d/log.txt",
-    "mode": "BCIC",
+    "mode": "LYH",
     "train_prop": 0.8,
     "pretrained": false,
     "pretrained_pth": "./results_lyh/results_lyh_4cls_in",
     "use_center_loss": false,
-    "deformable": false,
+    "deformable": true,
     "emb_size": 40,
-    "proj_size": 20,
-    "encoder_depth": 6,
+    "proj_size": 40,
+    "encoder_depth": 4,
     "decoder_depth": 2,
-    "n_classes": 4,
-    "channel": 22,
-    "seq_len": 1000,
-    "num_queries": 6,
-    "mamba": true,
+    "n_classes": 3,
+    "channel": 14,
+    "seq_len": 250,
+    "num_queries": 3,
+    "mamba": false,
     "mamba_depth": 3,
     "block_depth": 3,
     "conv_channel": 20,
@@ -28,7 +28,7 @@ config:
         "num_of_points": 16
     },
     "decoder_config": {
-        "num_heads": 4,
+        "num_heads": 8,
         "drop_p": 0.5,
         "forward_expansion": 4,
         "forward_drop_p": 0.5,
@@ -38,11 +38,21 @@ config:
     "hidden_size_2": 64,
     "drop_p_1": 0.5,
     "drop_p_2": 0.3,
-    "batch_size": 72,
-    "n_epochs": 500,
+    "batch_size": 100,
+    "n_epochs": 100,
     "lr": 0.002,
     "b1": 0.9,
     "b2": 0.999,
     "Lambda": 0.0005
 }
 
+Seed is: 403
+The best accuracy is: 0.8
+The average accuracy is: 0.7038833333333333
+Best accuracy appears in: 27 epoch.
+Duration: 0:03:14.343380
+
+confusion_matirx:
+[[366  21  13]
+ [107 202  91]
+ [  1   7 392]]
